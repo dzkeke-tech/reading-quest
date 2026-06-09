@@ -1,0 +1,914 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<title>阅读探险队 · Reading Quest</title>
+<style>
+  :root{
+    --leaf:#23B26B; --leaf-d:#178a51;
+    --sky:#3B82F6; --sky-d:#2563eb;
+    --sun:#FB923C; --sun-d:#ea7a26;
+    --berry:#E8517A;
+    --cream:#FFF8EC; --paper:#FFFFFF;
+    --ink:#2A3342; --ink-soft:#5b6577;
+    --line:#ECE3D2;
+    --shadow:0 10px 30px rgba(42,51,66,.10), 0 2px 6px rgba(42,51,66,.06);
+    --shadow-lg:0 18px 50px rgba(42,51,66,.16);
+    --r:22px;
+    --display:"Chalkboard SE","Comic Sans MS","PingFang SC",system-ui,sans-serif;
+    --body:"Avenir Next","Avenir","PingFang SC",system-ui,-apple-system,sans-serif;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0;padding:0}
+  body{
+    font-family:var(--body); color:var(--ink);
+    background:
+      radial-gradient(900px 500px at 80% -10%, rgba(59,130,246,.16), transparent 60%),
+      radial-gradient(700px 500px at -10% 110%, rgba(35,178,107,.16), transparent 60%),
+      var(--cream);
+    min-height:100vh; -webkit-text-size-adjust:100%;
+  }
+  .app{max-width:760px;margin:0 auto;padding:18px 16px 60px}
+  h1,h2,h3{font-family:var(--display);margin:0}
+  button{font-family:var(--body);cursor:pointer;border:none}
+  .hidden{display:none!important}
+
+  /* ---- top bar ---- */
+  .topbar{display:flex;align-items:center;gap:10px;margin-bottom:14px}
+  .logo{font-family:var(--display);font-size:22px;font-weight:700;display:flex;align-items:center;gap:8px}
+  .logo .badge{background:var(--sun);color:#fff;border-radius:12px;padding:2px 10px;font-size:13px;transform:rotate(-4deg)}
+  .spacer{flex:1}
+  .ghost-btn{background:var(--paper);border:2px solid var(--line);border-radius:16px;padding:9px 14px;font-size:15px;font-weight:600;color:var(--ink);box-shadow:var(--shadow);transition:transform .12s}
+  .ghost-btn:active{transform:scale(.95)}
+
+  /* ---- cards ---- */
+  .card{background:var(--paper);border-radius:var(--r);box-shadow:var(--shadow);padding:18px;margin-bottom:16px;border:1px solid rgba(0,0,0,.02)}
+  .section-title{font-family:var(--display);font-size:19px;margin-bottom:12px;display:flex;align-items:center;gap:8px}
+  .sub{color:var(--ink-soft);font-size:14px}
+
+  /* ---- family / profile grid ---- */
+  .grid{display:grid;grid-template-columns:repeat(2,1fr);gap:14px}
+  .pcard{background:var(--paper);border-radius:var(--r);box-shadow:var(--shadow);padding:18px;text-align:center;border:3px solid transparent;transition:transform .14s, border-color .14s;position:relative;overflow:hidden}
+  .pcard:active{transform:scale(.97)}
+  .pcard .ava{font-size:54px;line-height:1;margin-bottom:6px}
+  .pcard .pname{font-family:var(--display);font-size:20px}
+  .pcard .pmeta{font-size:13px;color:var(--ink-soft);margin-top:4px}
+  .pcard .lvtag{display:inline-block;margin-top:8px;background:var(--cream);border-radius:12px;padding:3px 10px;font-size:12px;font-weight:700;color:var(--leaf-d)}
+  .flame{color:var(--sun);font-weight:700}
+
+  /* ---- dashboard ---- */
+  .dash-head{display:flex;align-items:center;gap:14px}
+  .dash-head .ava{font-size:58px}
+  .dash-head .who{flex:1}
+  .dash-head .who .n{font-family:var(--display);font-size:26px}
+  .stat-row{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:14px}
+  .stat{background:var(--cream);border-radius:16px;padding:12px;text-align:center}
+  .stat .v{font-family:var(--display);font-size:24px}
+  .stat .l{font-size:12px;color:var(--ink-soft);margin-top:2px}
+  .progress{height:14px;background:var(--cream);border-radius:10px;overflow:hidden;margin-top:10px}
+  .progress > i{display:block;height:100%;background:linear-gradient(90deg,var(--leaf),var(--sky));border-radius:10px;transition:width .6s cubic-bezier(.2,.8,.2,1)}
+
+  .big-btn{width:100%;background:linear-gradient(180deg,var(--sun),var(--sun-d));color:#fff;border-radius:20px;padding:18px;font-family:var(--display);font-size:22px;box-shadow:0 8px 0 #c9621a, var(--shadow);transition:transform .08s, box-shadow .08s;margin-top:16px}
+  .big-btn:active{transform:translateY(5px);box-shadow:0 3px 0 #c9621a}
+  .row-btns{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px}
+  .pill-btn{background:var(--paper);border:2px solid var(--line);border-radius:18px;padding:14px;font-weight:700;font-size:16px;color:var(--ink);box-shadow:var(--shadow);transition:transform .1s}
+  .pill-btn:active{transform:scale(.96)}
+
+  .collection{display:flex;flex-wrap:wrap;gap:8px;margin-top:6px}
+  .crit{font-size:30px;width:48px;height:48px;display:flex;align-items:center;justify-content:center;background:var(--cream);border-radius:14px}
+  .crit.locked{filter:grayscale(1);opacity:.35}
+  .badge-chip{display:inline-flex;align-items:center;gap:6px;background:var(--cream);border-radius:14px;padding:6px 10px;font-size:13px;font-weight:700;margin:4px 4px 0 0}
+
+  /* ---- modal / flow ---- */
+  .overlay{position:fixed;inset:0;background:rgba(42,51,66,.45);backdrop-filter:blur(3px);display:flex;align-items:flex-end;justify-content:center;z-index:50;padding:0}
+  .sheet{background:var(--cream);width:100%;max-width:760px;border-radius:28px 28px 0 0;max-height:94vh;overflow:auto;padding:20px 18px calc(28px + env(safe-area-inset-bottom));box-shadow:var(--shadow-lg);animation:rise .26s cubic-bezier(.2,.8,.2,1)}
+  @keyframes rise{from{transform:translateY(40px);opacity:.4}to{transform:translateY(0);opacity:1}}
+  .sheet-head{display:flex;align-items:center;gap:10px;margin-bottom:14px}
+  .sheet-head h2{font-size:21px}
+  .step-dots{display:flex;gap:6px;margin:0 auto}
+  .step-dots i{width:9px;height:9px;border-radius:50%;background:var(--line)}
+  .step-dots i.on{background:var(--sun)}
+  .x{margin-left:auto;background:var(--paper);border:2px solid var(--line);border-radius:50%;width:38px;height:38px;font-size:18px;font-weight:700;color:var(--ink-soft)}
+
+  label.fld{display:block;font-weight:700;margin:14px 0 8px;font-size:15px}
+  .ti{width:100%;border:2px solid var(--line);border-radius:16px;padding:14px;font-size:17px;background:var(--paper);font-family:var(--body);color:var(--ink)}
+  textarea.ti{min-height:90px;resize:vertical;line-height:1.5}
+  .ti:focus{outline:none;border-color:var(--sky)}
+
+  .chips{display:flex;flex-wrap:wrap;gap:8px}
+  .chip{background:var(--paper);border:2px solid var(--line);border-radius:16px;padding:10px 14px;font-size:15px;font-weight:600;color:var(--ink);transition:all .12s}
+  .chip.on{background:var(--sky);border-color:var(--sky);color:#fff}
+  .chip.lang.on{background:var(--leaf);border-color:var(--leaf)}
+  .chip:active{transform:scale(.95)}
+
+  .q-block{background:var(--paper);border-radius:18px;padding:16px;margin-top:12px;box-shadow:var(--shadow)}
+  .q-tag{display:inline-block;font-size:12px;font-weight:700;color:#fff;background:var(--berry);border-radius:10px;padding:2px 9px;margin-bottom:8px}
+  .q-tag.mc{background:var(--sky)}
+  .q-tag.open{background:var(--leaf)}
+  .q-text{font-size:18px;font-weight:600;margin-bottom:10px;line-height:1.45}
+  .opt{display:block;width:100%;text-align:left;background:var(--cream);border:2px solid transparent;border-radius:14px;padding:13px 15px;font-size:16px;margin-top:8px;color:var(--ink);transition:all .12s}
+  .opt.on{background:#e9f7ef;border-color:var(--leaf);font-weight:700}
+  .opt:active{transform:scale(.98)}
+  .mic-btn{display:inline-flex;align-items:center;gap:6px;margin-top:10px;background:var(--berry);color:#fff;border-radius:14px;padding:10px 14px;font-weight:700;font-size:15px}
+  .buddy-bubble{background:#eaf7ef;border:2px solid #cdeede;border-radius:16px;border-bottom-left-radius:4px;padding:12px 14px;margin-top:10px;font-size:16px;line-height:1.5;color:var(--ink);animation:rise .2s}
+  .hint{font-size:13px;color:var(--ink-soft);margin-top:8px;line-height:1.45}
+
+  .timer-wrap{text-align:center;padding:8px 0}
+  .timer{font-family:var(--display);font-size:56px;letter-spacing:1px}
+  .timer-ctrl{display:flex;gap:10px;justify-content:center;margin-top:8px}
+
+  /* ---- result ---- */
+  .result{text-align:center;padding:8px 4px}
+  .result .hooray{font-family:var(--display);font-size:30px;margin-bottom:6px}
+  .pts-pop{font-family:var(--display);font-size:64px;color:var(--sun);margin:6px 0}
+  .breakdown{background:var(--paper);border-radius:18px;padding:14px;text-align:left;margin-top:8px}
+  .breakdown div{display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px dashed var(--line);font-size:15px}
+  .breakdown div:last-child{border:none;font-weight:800}
+  .unlock{background:linear-gradient(135deg,#fff3df,#ffe9cf);border-radius:18px;padding:14px;margin-top:12px;font-weight:700}
+
+  /* ---- rewards ---- */
+  .reward{display:flex;align-items:center;gap:12px;background:var(--paper);border-radius:18px;padding:14px;margin-top:10px;box-shadow:var(--shadow)}
+  .reward .ic{font-size:34px}
+  .reward .rinfo{flex:1}
+  .reward .rname{font-weight:700;font-size:16px}
+  .reward .rcost{font-size:13px;color:var(--ink-soft)}
+  .redeem{background:var(--leaf);color:#fff;border-radius:14px;padding:10px 14px;font-weight:700;font-size:15px}
+  .redeem:disabled{background:var(--line);color:var(--ink-soft)}
+
+  /* ---- history ---- */
+  .hist-item{background:var(--paper);border-radius:16px;padding:13px 15px;margin-top:10px;box-shadow:var(--shadow)}
+  .hist-top{display:flex;justify-content:space-between;font-size:14px;color:var(--ink-soft)}
+  .hist-book{font-weight:700;font-size:16px;margin:3px 0}
+  .hist-ans{font-size:14px;color:var(--ink);background:var(--cream);border-radius:12px;padding:9px 11px;margin-top:6px;line-height:1.45}
+  .hist-ans b{color:var(--leaf-d)}
+
+  /* parent rows */
+  .prow{display:flex;align-items:center;gap:10px;margin-top:10px;flex-wrap:wrap}
+  .prow .ti{flex:1;min-width:120px}
+  .mini{background:var(--berry);color:#fff;border-radius:12px;padding:9px 12px;font-weight:700;font-size:14px}
+  .mini.gray{background:var(--line);color:var(--ink)}
+
+  .toast{position:fixed;left:50%;bottom:30px;transform:translateX(-50%);background:var(--ink);color:#fff;padding:13px 20px;border-radius:16px;font-weight:600;z-index:99;box-shadow:var(--shadow-lg);animation:rise .2s}
+  canvas#confetti{position:fixed;inset:0;pointer-events:none;z-index:60}
+
+  .leader{margin-top:6px}
+  .lrow{display:flex;align-items:center;gap:10px;margin-top:9px}
+  .lrow .la{font-size:26px}
+  .lrow .lname{width:70px;font-weight:700;font-size:14px}
+  .lbar{flex:1;height:16px;background:var(--cream);border-radius:8px;overflow:hidden}
+  .lbar > i{display:block;height:100%;border-radius:8px;background:linear-gradient(90deg,var(--sun),var(--berry))}
+  .lrow .lp{width:46px;text-align:right;font-weight:700;font-size:14px}
+  .note{font-size:12px;color:var(--ink-soft);text-align:center;margin-top:18px;line-height:1.5}
+</style>
+</head>
+<body>
+<div class="app" id="app"></div>
+<canvas id="confetti"></canvas>
+
+<script>
+/* ============================================================
+   阅读探险队 · Reading Quest  — single-file offline app
+   ============================================================ */
+
+/* ---------- storage shim (localStorage + in-memory fallback) ---------- */
+const Store = (() => {
+  let mem = {}, ok = true;
+  try { localStorage.setItem('__t','1'); localStorage.removeItem('__t'); }
+  catch(e){ ok = false; }
+  return {
+    persistent: ok,
+    get(k){ try { return ok ? localStorage.getItem(k) : (mem[k] ?? null); } catch(e){ return mem[k] ?? null; } },
+    set(k,v){ try { ok ? localStorage.setItem(k,v) : (mem[k]=v); } catch(e){ mem[k]=v; } }
+  };
+})();
+const KEY = 'readingquest_v1';
+
+/* ---------- defaults ---------- */
+const COMPANIONS = ['🐢','🦊','🦉','🐼','🦋','🐙','🐳','🦁','🦒','🐧','🦜','🐝','🦄','🦩','🐬','🦚'];
+function defaultState(){
+  return {
+    profiles: {
+      charles:{ id:'charles', name:'Charles', emoji:'🦊', band:'big',   points:0, totalCheckins:0, streak:0, lastDate:null, history:[], badges:[] },
+      kylie:  { id:'kylie',   name:'Kylie',   emoji:'🦋', band:'young', points:0, totalCheckins:0, streak:0, lastDate:null, history:[], badges:[] },
+      dad:    { id:'dad',     name:'爸爸',     emoji:'🐻', band:'big',   points:0, totalCheckins:0, streak:0, lastDate:null, history:[], badges:[] },
+      mom:    { id:'mom',     name:'妈妈',     emoji:'🐼', band:'big',   points:0, totalCheckins:0, streak:0, lastDate:null, history:[], badges:[] }
+    },
+    order:['charles','kylie','dad','mom'],
+    rewards:[
+      {id:'r1', icon:'🍦', name:'周末冰淇淋 / Ice cream', cost:60},
+      {id:'r2', icon:'📺', name:'30 分钟动画 / 30 min cartoon', cost:50},
+      {id:'r3', icon:'📚', name:'挑一本新书 / Pick a new book', cost:90},
+      {id:'r4', icon:'🛝', name:'去公园玩 / Trip to the park', cost:120},
+      {id:'r5', icon:'🍽️', name:'决定一顿饭吃什么 / Choose a meal', cost:70},
+      {id:'r6', icon:'🎁', name:'大奖：一次小出游 / Big day out', cost:350}
+    ],
+    redemptions:[],
+    settings:{ requireParentConfirm:true }
+  };
+}
+let S = load();
+function load(){
+  const raw = Store.get(KEY);
+  if(raw){ try{ return JSON.parse(raw); }catch(e){} }
+  return defaultState();
+}
+function save(){ Store.set(KEY, JSON.stringify(S)); }
+
+/* ---------- level / goal / tier logic (progressive) ---------- */
+const LV_STEP = 60; // points per level
+function levelOf(p){ return Math.floor(p.points / LV_STEP) + 1; }
+function levelName(lv){
+  const names = ['阅读小苗 Sprout','故事探险家 Explorer','书页冒险家 Adventurer','知识寻宝家 Treasure Hunter',
+                 '阅读骑士 Reading Knight','智慧旅行家 Sage','书海船长 Captain','传说阅读家 Legend'];
+  return names[Math.min(lv-1, names.length-1)];
+}
+function progressInLevel(p){ return (p.points % LV_STEP) / LV_STEP; }
+function timeGoal(p){
+  const lv = levelOf(p);
+  if(p.band==='young') return Math.min(10 + (lv-1)*2, 22);
+  return Math.min(15 + (lv-1)*2, 35);
+}
+function tierOf(p){
+  const lv = levelOf(p);
+  const base = p.band==='young' ? 1 : 2;
+  return Math.min(3, base + Math.floor((lv-1)/3));
+}
+function companionsUnlocked(p){ return Math.min(levelOf(p), COMPANIONS.length); }
+
+/* ---------- question bank (bilingual, tiered) ---------- */
+const QUESTIONS = {
+  // metacognition multiple-choice (quick self-check), language-agnostic content but localized
+  mc: {
+    zh:[
+      {q:'这本书读起来感觉怎么样？', o:['很简单','刚刚好','有点挑战','很难']},
+      {q:'今天的内容你读懂了多少？', o:['几乎全懂','大部分','一半左右','一点点']},
+      {q:'你想把这本书推荐给朋友吗？', o:['超级想！','想','一般','不太想']},
+      {q:'读这本书时你的心情是？', o:['开心 😄','好奇 🤔','平静 😌','有点无聊 😐']}
+    ],
+    en:[
+      {q:'How did this book feel to read?', o:['Very easy','Just right','A bit challenging','Hard']},
+      {q:'How much did you understand today?', o:['Almost all','Most of it','About half','A little']},
+      {q:'Would you recommend this book to a friend?', o:['Totally!','Yes','It\'s okay','Not really']},
+      {q:'How did you feel while reading?', o:['Happy 😄','Curious 🤔','Calm 😌','A bit bored 😐']}
+    ]
+  },
+  // open-ended (answer by voice / dictation) — by tier
+  open:{
+    1:{ zh:[
+        '这本书里你最喜欢谁？为什么？',
+        '故事里发生了什么？讲给我听一听。',
+        '今天你学到的一个新词是什么？意思是？',
+        '你最喜欢哪一页或哪张图？说说看。'
+      ], en:[
+        'Who is your favorite character? Why?',
+        'What happened in the story? Tell me about it.',
+        'What is one new word you learned today? What does it mean?',
+        'Which page or picture did you like best? Tell me about it.'
+      ]},
+    2:{ zh:[
+        '故事的开头、中间和结尾分别发生了什么？',
+        '你觉得接下来会发生什么？为什么这样猜？',
+        '主角遇到了什么问题？是怎么解决的？',
+        '这本书让你想到自己生活中的什么事？'
+      ], en:[
+        'What happened at the beginning, middle, and end?',
+        'What do you think will happen next? Why do you guess that?',
+        'What problem did the main character face? How was it solved?',
+        'Does this remind you of something in your own life?'
+      ]},
+    3:{ zh:[
+        '如果你是主角，你会怎么做？为什么？',
+        '作者想通过这个故事告诉我们什么？',
+        '用三句话总结一下这本书。',
+        '你最喜欢的一句话是什么？为什么它打动了你？'
+      ], en:[
+        'If you were the main character, what would you do? Why?',
+        'What is the author trying to tell us through this story?',
+        'Summarize this book in three sentences.',
+        'What is your favorite sentence? Why did it move you?'
+      ]}
+  }
+};
+/* canonical book types + bilingual labels (used by auto-detect) */
+const TYPES = [
+  {k:'picture',    zh:'绘本',   en:'Picture book', emo:'🖼️'},
+  {k:'story',      zh:'故事书', en:'Story',        emo:'📖'},
+  {k:'nonfiction', zh:'科普',   en:'Non-fiction',  emo:'🔬'},
+  {k:'comic',      zh:'漫画',   en:'Comic',        emo:'💥'},
+  {k:'chapter',    zh:'章节书', en:'Chapter book', emo:'📚'},
+  {k:'poetry',     zh:'诗歌',   en:'Poetry',       emo:'🎵'}
+];
+function typeLabel(k,lang){ const t=TYPES.find(x=>x.k===k)||TYPES[1]; return t.emo+' '+(lang==='zh'?t.zh:t.en); }
+
+/* encouraging, NON-judgmental replies (used when live AI is unavailable) */
+const CHEERS = {
+  zh:[
+    '谢谢你和我分享！😊 你愿意再多说一点吗？',
+    '哇，你观察得真仔细！🌟 还有别的想法吗？',
+    '这个想法真特别～你是怎么想到的呢？',
+    '说得真好！如果换成是你，你会怎么做？',
+    '我很喜欢你的回答！这一段里你最喜欢哪里？',
+    '听起来你读得很认真呢👏 还有什么想告诉我的吗？'
+  ],
+  en:[
+    'Thanks for sharing! 😊 Can you tell me a little more?',
+    'Wow, you noticed so much! 🌟 Any other ideas?',
+    'What an interesting thought — how did you think of that?',
+    'Nicely said! What would you do if it were you?',
+    'I love your answer! What part did you like best?',
+    'Sounds like you read carefully 👏 Anything else to tell me?'
+  ]
+};
+function hasCJK(s){ return /[\u3400-\u9fff]/.test(s); }
+
+/* ---------- AI layer (auto-active inside Claude.ai; via your Worker when self-hosted) ---------- */
+/* ▼▼▼ 把你的 Cloudflare Worker 地址粘到这里，自托管(GitHub Pages)即可启用真·AI ▼▼▼ */
+const WORKER_URL = "https://reading-quest-ai.dzkeke.workers.dev";
+/* 留空时：在 Claude.ai 里运行会自动直连 AI；自托管则使用内置鼓励语兜底 */
+
+/* 隐私开关：是否把"孩子的开放式回答"也发给 AI 生成鼓励语。
+   false = 只用 AI 识别书名(不发孩子的话)，鼓励语用本地内置 → 更保护隐私（推荐）
+   true  = 鼓励语也由 AI 生成（孩子的回答会发到 AI，免费 Gemini 层可能被用于改进产品） */
+const AI_ENCOURAGE = false;
+
+async function callClaude(prompt, maxTokens){
+  const ctrl=new AbortController(); const to=setTimeout(()=>ctrl.abort(),12000);
+  try{
+    let res;
+    if(WORKER_URL){
+      res=await fetch(WORKER_URL,{ method:'POST', headers:{'Content-Type':'application/json'}, signal:ctrl.signal,
+        body:JSON.stringify({ prompt, max_tokens:maxTokens||300 }) });
+    } else {
+      res=await fetch('https://api.anthropic.com/v1/messages',{ method:'POST', headers:{'Content-Type':'application/json'}, signal:ctrl.signal,
+        body:JSON.stringify({ model:'claude-sonnet-4-20250514', max_tokens:maxTokens||300, messages:[{role:'user',content:prompt}] }) });
+    }
+    clearTimeout(to);
+    if(!res.ok) return null;
+    const d=await res.json();
+    return (d.content||[]).map(x=>x.text||'').join('').trim() || null;
+  }catch(e){ clearTimeout(to); return null; }
+}
+async function aiClassify(title){
+  const txt=await callClaude(
+    `判断这本童书的类型和主要语言。书名：「${title}」。`+
+    `类型只能从这些里选一个键名：picture(绘本)/story(故事书)/nonfiction(科普)/comic(漫画)/chapter(章节书)/poetry(诗歌)。`+
+    `只返回 JSON，不要任何多余文字：{"type":"键名","lang":"zh或en"}`, 200);
+  if(!txt) return null;
+  try{ const j=JSON.parse(txt.replace(/```json|```/g,'').trim());
+    if(j&&TYPES.some(t=>t.k===j.type)&&(j.lang==='zh'||j.lang==='en')) return {type:j.type,lang:j.lang};
+  }catch(e){}
+  return null;
+}
+async function aiEncourage(book, age, lang, q, ans){
+  if(!AI_ENCOURAGE) return null;   // 隐私默认：不把孩子的回答发给 AI，走本地鼓励语
+  return await callClaude(
+    `你是一个温暖、爱鼓励的阅读小伙伴，在和一个${age}岁的孩子聊他刚读的书《${book}》。`+
+    `刚才的问题是：「${q}」。孩子的回答是：「${ans}」。`+
+    `请用${lang==='zh'?'中文':'English'}回应，要求：真诚热情地肯定他愿意表达；`+
+    `绝对不要评判对错、不要纠正、不要说"正确/不对"；用 1-2 句，再加一个轻松的追问邀请他多说一点；`+
+    `语气适合${age}岁孩子，可用 1 个 emoji。只返回你要对孩子说的那句话。`, 200);
+}
+
+/* ---------- online book lookup (free, no key — works on GitHub Pages) ---------- */
+async function googleBooks(title){
+  const ctrl=new AbortController(); const to=setTimeout(()=>ctrl.abort(),7000);
+  try{
+    const r=await fetch('https://www.googleapis.com/books/v1/volumes?maxResults=1&q='+encodeURIComponent(title),{signal:ctrl.signal});
+    clearTimeout(to);
+    const d=await r.json();
+    if(!d.items||!d.items.length) return null;
+    const v=d.items[0].volumeInfo||{};
+    const lang=(v.language||'').startsWith('zh')?'zh':((v.language||'').startsWith('en')?'en':(hasCJK(title)?'zh':'en'));
+    const cats=((v.categories||[]).join(' ')+' '+(v.title||'')).toLowerCase();
+    let k='story';
+    if(/comic|graphic|漫画/.test(cats)) k='comic';
+    else if(/poetry|poem|rhyme|诗|童谣/.test(cats)) k='poetry';
+    else if(/nonfiction|non-fiction|science|nature|history|reference|encyclopedia|科普|百科|科学/.test(cats)) k='nonfiction';
+    else if(v.pageCount && v.pageCount<=40) k='picture';
+    else if(v.pageCount && v.pageCount>=80) k='chapter';
+    return {type:k, lang};
+  }catch(e){ clearTimeout(to); return null; }
+}
+function heuristicType(title){
+  const t=title.toLowerCase();
+  if(/漫画|comic/.test(t)) return 'comic';
+  if(/诗|童谣|poem|poetry|rhyme/.test(t)) return 'poetry';
+  if(/百科|科普|为什么|十万个|science|encyclopedia|how|why/.test(t)) return 'nonfiction';
+  return 'story';
+}
+async function detectBook(title){
+  const ai=await aiClassify(title); if(ai) return {...ai, source:'ai'};
+  const gb=await googleBooks(title); if(gb) return {...gb, source:'web'};
+  return { type:heuristicType(title), lang:hasCJK(title)?'zh':'en', source:'guess' };
+}
+
+/* ---------- helpers ---------- */
+const $ = sel => document.querySelector(sel);
+const app = $('#app');
+function todayStr(){ const d=new Date(); return d.getFullYear()+'-'+(d.getMonth()+1)+'-'+d.getDate(); }
+function dayDiff(a,b){ // string dates
+  const pa=a.split('-').map(Number), pb=b.split('-').map(Number);
+  const da=new Date(pa[0],pa[1]-1,pa[2]), db=new Date(pb[0],pb[1]-1,pb[2]);
+  return Math.round((db-da)/86400000);
+}
+function startOfWeek(){ const d=new Date(); const day=(d.getDay()+6)%7; d.setDate(d.getDate()-day); d.setHours(0,0,0,0); return d; }
+function weeklyPoints(p){
+  const wk=startOfWeek().getTime();
+  return p.history.filter(h=>{ const t=new Date(h.ts).getTime(); return t>=wk; }).reduce((s,h)=>s+h.points,0);
+}
+function pick(arr,n){ const c=[...arr]; const out=[]; while(out.length<n && c.length){ out.push(c.splice(Math.floor(Math.random()*c.length),1)[0]); } return out; }
+function toast(msg){ const t=document.createElement('div'); t.className='toast'; t.textContent=msg; document.body.appendChild(t); setTimeout(()=>t.remove(),1800); }
+
+/* ---------- ROUTER ---------- */
+let route = {name:'family'};
+function go(name, data){ route={name, ...data}; render(); window.scrollTo(0,0); }
+
+function render(){
+  if(route.name==='family') return renderFamily();
+  if(route.name==='dash') return renderDash(route.pid);
+  if(route.name==='rewards') return renderRewards(route.pid);
+  if(route.name==='history') return renderHistory(route.pid);
+  if(route.name==='parent') return renderParent();
+}
+
+/* ---------- FAMILY SCREEN ---------- */
+function renderFamily(){
+  const totalThisWeek = S.order.reduce((s,id)=>s+weeklyPoints(S.profiles[id]),0);
+  const maxWk = Math.max(1, ...S.order.map(id=>weeklyPoints(S.profiles[id])));
+  app.innerHTML = `
+    <div class="topbar">
+      <div class="logo">📖 阅读探险队 <span class="badge">Reading Quest</span></div>
+      <div class="spacer"></div>
+      <button class="ghost-btn" onclick="go('parent')">⚙️ 家长</button>
+    </div>
+    <div class="card">
+      <div class="section-title">👋 今天谁来读书？ Who's reading today?</div>
+      <div class="grid">
+        ${S.order.map(id=>{ const p=S.profiles[id]; const lv=levelOf(p);
+          return `<div class="pcard" onclick="go('dash',{pid:'${id}'})">
+            <div class="ava">${p.emoji}</div>
+            <div class="pname">${p.name}</div>
+            <div class="pmeta">⭐ ${p.points} 分 · ${p.streak>0?`<span class="flame">🔥${p.streak}天</span>`:'还没连击'}</div>
+            <div class="lvtag">Lv.${lv} ${levelName(lv).split(' ')[0]}</div>
+          </div>`; }).join('')}
+      </div>
+    </div>
+    <div class="card">
+      <div class="section-title">🏆 本周家庭阅读榜 Family Board</div>
+      <div class="sub">全家本周共 ${totalThisWeek} 分 · 一起加油！</div>
+      <div class="leader">
+        ${S.order.map(id=>{ const p=S.profiles[id]; const w=weeklyPoints(p);
+          return `<div class="lrow"><div class="la">${p.emoji}</div>
+            <div class="lname">${p.name}</div>
+            <div class="lbar"><i style="width:${Math.round(w/maxWk*100)}%"></i></div>
+            <div class="lp">${w}</div></div>`; }).join('')}
+      </div>
+    </div>
+    <div class="note">${Store.persistent
+      ? '✅ 数据已保存在本设备。建议放到 GitHub Pages 后"添加到主屏幕"，每人用自己的 iPad 体验最佳。'
+      : '⚠️ 当前在预览环境，刷新后数据不会保存。下载此 HTML 到 iPad 上独立打开即可正常记录积分。'}</div>
+  `;
+}
+
+/* ---------- DASHBOARD ---------- */
+function renderDash(pid){
+  const p=S.profiles[pid]; const lv=levelOf(p); const goal=timeGoal(p);
+  const unlocked=companionsUnlocked(p);
+  const checkedToday = p.lastDate===todayStr();
+  app.innerHTML = `
+    <div class="topbar">
+      <button class="ghost-btn" onclick="go('family')">← 全家</button>
+      <div class="spacer"></div>
+      <button class="ghost-btn" onclick="go('rewards',{pid:'${pid}'})">🎁 奖励</button>
+      <button class="ghost-btn" onclick="go('history',{pid:'${pid}'})">📒 记录</button>
+    </div>
+    <div class="card">
+      <div class="dash-head">
+        <div class="ava">${p.emoji}</div>
+        <div class="who">
+          <div class="n">${p.name}</div>
+          <div class="sub">Lv.${lv} · ${levelName(lv)}</div>
+        </div>
+      </div>
+      <div class="stat-row">
+        <div class="stat"><div class="v">⭐${p.points}</div><div class="l">积分 Points</div></div>
+        <div class="stat"><div class="v">🔥${p.streak}</div><div class="l">连续天数 Streak</div></div>
+        <div class="stat"><div class="v">📚${p.totalCheckins}</div><div class="l">已打卡 Check-ins</div></div>
+      </div>
+      <div class="sub" style="margin-top:14px">距离 Lv.${lv+1} 还差 ${LV_STEP-(p.points%LV_STEP)} 分</div>
+      <div class="progress"><i style="width:${Math.round(progressInLevel(p)*100)}%"></i></div>
+      <button class="big-btn" onclick="startCheckin('${pid}')">
+        ${checkedToday?'📖 再读一次 Read again!':'🚀 开始今天的阅读打卡'}
+      </button>
+      <div class="sub" style="text-align:center;margin-top:10px">今日目标 ${goal} 分钟 · 难度 ${'⭐'.repeat(tierOf(p))}</div>
+    </div>
+    <div class="card">
+      <div class="section-title">🐾 我的阅读伙伴 Reading Friends</div>
+      <div class="sub">每升一级解锁一只新伙伴（已解锁 ${unlocked}/${COMPANIONS.length}）</div>
+      <div class="collection">
+        ${COMPANIONS.map((c,i)=>`<div class="crit ${i<unlocked?'':'locked'}">${c}</div>`).join('')}
+      </div>
+    </div>
+    <div class="card">
+      <div class="section-title">🏅 徽章 Badges</div>
+      ${p.badges.length? p.badges.map(b=>`<span class="badge-chip">${b}</span>`).join('')
+        : '<div class="sub">还没有徽章，多打卡就能解锁啦！No badges yet — keep reading!</div>'}
+    </div>
+  `;
+}
+
+/* ---------- CHECK-IN FLOW ---------- */
+let flow = null;
+function startCheckin(pid){
+  const p=S.profiles[pid];
+  flow = { pid, step:0, book:'', lang:'zh', type:'', langTouched:false, typeTouched:false, minutes:0, questions:[], answers:{}, cheers:{} };
+  renderFlow();
+}
+function closeFlow(){ flow=null; const o=$('#overlay'); if(o) o.remove(); render(); }
+function flowStep(n){ flow.step=n; renderFlow(); }
+
+function renderFlow(){
+  let o=$('#overlay'); if(!o){ o=document.createElement('div'); o.id='overlay'; o.className='overlay'; document.body.appendChild(o); }
+  const p=S.profiles[flow.pid];
+  const dots=[0,1,2,3].map(i=>`<i class="${i===flow.step?'on':''}"></i>`).join('');
+  let body='';
+
+  if(flow.step===0){ // book — auto-detect type & language
+    body=`
+      <label class="fld">📕 你在读什么书？ What book are you reading?</label>
+      <input class="ti" id="bookInput" autocomplete="off" placeholder="输入书名，可用键盘🎤听写 / Type the title"
+             oninput="onTitleInput(this.value)" value="${flow.book.replace(/"/g,'&quot;')}">
+      <div id="detectStatus" class="hint" style="min-height:20px;margin-top:8px">${flow.book? '' : '🔍 输入书名后会自动识别类型和语言 · auto-detected after you type'}</div>
+      <label class="fld">🌐 语言 Language <span class="sub">（问答会用这个语言 · questions match this）</span></label>
+      <div class="chips" id="langChips"></div>
+      <label class="fld">📚 类型 Type <span class="sub">（自动识别，点一下可改 · tap to change）</span></label>
+      <div class="chips" id="typeChips"></div>
+      <button class="big-btn" onclick="flowNextBook()">下一步 Next →</button>
+    `;
+  }
+  else if(flow.step===1){ // time
+    const goal=timeGoal(p);
+    body=`
+      <div class="timer-wrap">
+        <div class="sub">⏱️ 今天读了多久？ How long did you read?</div>
+        <div class="sub" style="margin-top:4px">目标 ${goal} 分钟 Goal</div>
+        <div class="timer" id="timerDisp">${String(Math.floor(timerSec/60)).padStart(2,'0')}:${String(timerSec%60).padStart(2,'0')}</div>
+        <div class="timer-ctrl">
+          <button class="pill-btn" id="timerToggle" onclick="toggleTimer()">${timerRunning?'⏸ 暂停':'▶️ 开始计时'}</button>
+          <button class="pill-btn" onclick="resetTimer()">↺ 重置</button>
+        </div>
+        <div class="sub" style="margin-top:14px">或者直接选择 Or just pick:</div>
+        <div class="chips" style="justify-content:center;margin-top:8px">
+          ${[5,10,15,20,30,45].map(m=>`<button class="chip ${flow.minutes===m?'on':''}" onclick="setMinutes(${m})">${m} 分</button>`).join('')}
+        </div>
+      </div>
+      <button class="big-btn" onclick="flowNextTime()">开始答题 Start Q&A →</button>
+    `;
+  }
+  else if(flow.step===2){ // Q&A — encourage sharing, never judge right/wrong
+    const L=flow.lang;
+    body = flow.questions.map((q,i)=>{
+      if(q.kind==='mc'){
+        return `<div class="q-block">
+          <span class="q-tag mc">${L==='zh'?'选一选（没有对错）':'Pick one'}</span>
+          <div class="q-text">${q.q}</div>
+          ${q.o.map((opt,oi)=>`<button class="opt ${flow.answers[i]===oi?'on':''}" onclick="answerMC(${i},${oi})">${opt}</button>`).join('')}
+        </div>`;
+      } else {
+        const hasSR = ('webkitSpeechRecognition' in window)||('SpeechRecognition' in window);
+        const cheer = flow.cheers[i];
+        return `<div class="q-block">
+          <span class="q-tag open">${L==='zh'?'说一说':'Tell me'}</span>
+          <div class="q-text">${q.q}</div>
+          <textarea class="ti" id="ans${i}" placeholder="${L==='zh'?'点这里，按键盘上的 🎤 说出你的想法':'Tap here, press 🎤 on the keyboard to speak'}" oninput="answerOpen(${i}, this.value)">${(flow.answers[i]||'')}</textarea>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px">
+            ${hasSR?`<button class="mic-btn" onclick="startSpeech(${i},'${L}')">🎤 ${L==='zh'?'语音作答':'Speak'}</button>`:''}
+            <button class="mic-btn" style="background:var(--leaf)" onclick="getCheer(${i})">💬 ${L==='zh'?'说完啦，听听小伙伴':'Done — hear back'}</button>
+          </div>
+          ${cheer?`<div class="buddy-bubble" id="bub${i}">🐾 ${cheer}</div>`:`<div class="buddy-bubble hidden" id="bub${i}"></div>`}
+          <div class="hint">💡 ${L==='zh'?'说出你真实的想法就很棒，没有标准答案～':'Just share what you really think — there\'s no right answer!'}</div>
+        </div>`;
+      }
+    }).join('');
+    body += `<button class="big-btn" onclick="finishCheckin()">完成打卡！ Finish! 🎉</button>`;
+  }
+
+  o.innerHTML = `<div class="sheet">
+    <div class="sheet-head">
+      ${flow.step>0 && flow.step<3?`<button class="ghost-btn" onclick="flowStep(${flow.step-1})">←</button>`:''}
+      <div class="step-dots">${dots}</div>
+      <button class="x" onclick="closeFlow()">✕</button>
+    </div>
+    ${body}
+  </div>`;
+  if(flow.step===0) paintChips();
+}
+
+/* flow setters & auto-detect (imperative DOM updates to keep input focus) */
+let detectTimer=null, detectSeq=0;
+function onTitleInput(v){
+  flow.book=v.trim();
+  // instant default from script so the flow is never blocked
+  if(!flow.langTouched) flow.lang = hasCJK(flow.book)?'zh':'en';
+  clearTimeout(detectTimer);
+  if(!flow.book){ const s=$('#detectStatus'); if(s) s.textContent='🔍 输入书名后会自动识别 · auto-detect'; return; }
+  const s=$('#detectStatus'); if(s) s.textContent='🔍 识别中… detecting…';
+  const seq=++detectSeq;
+  detectTimer=setTimeout(async()=>{
+    const r=await detectBook(flow.book);
+    if(seq!==detectSeq) return;              // a newer keystroke superseded this
+    if(!flow.langTouched) flow.lang=r.lang;
+    if(!flow.typeTouched) flow.type=r.type;
+    const tag = r.source==='ai'?'🤖 AI 识别':(r.source==='web'?'🌐 联网识别':'🔍 自动判断');
+    const st=$('#detectStatus');
+    if(st) st.textContent = `${tag}：${typeLabel(flow.type,flow.lang)} · ${flow.lang==='zh'?'中文':'English'}（不对就点下面改）`;
+    paintChips();
+  }, 700);
+}
+function paintChips(){
+  if(!flow.type) flow.type='story';
+  const lc=$('#langChips');
+  if(lc) lc.innerHTML =
+    `<button class="chip lang ${flow.lang==='zh'?'on':''}" onclick="setLang('zh')">中文</button>`+
+    `<button class="chip lang ${flow.lang==='en'?'on':''}" onclick="setLang('en')">English</button>`;
+  const tc=$('#typeChips');
+  if(tc) tc.innerHTML = TYPES.map(t=>
+    `<button class="chip ${flow.type===t.k?'on':''}" onclick="setType('${t.k}')">${t.emo} ${flow.lang==='zh'?t.zh:t.en}</button>`).join('');
+}
+function setLang(l){ flow.lang=l; flow.langTouched=true; paintChips(); }
+function setType(k){ flow.type=k; flow.typeTouched=true; paintChips(); }
+function setMinutes(m){ stopTimer(); flow.minutes=m; timerSec=m*60; renderFlow(); }
+function flowNextBook(){
+  if(!flow.book){ toast('请先填写书名 📕 Enter a title first'); return; }
+  if(!flow.type) flow.type='story';
+  flowStep(1);
+}
+function flowNextTime(){
+  if(timerSec>0 && flow.minutes===0) flow.minutes=Math.max(1,Math.round(timerSec/60));
+  if(flow.minutes===0){ toast(flow.lang==='zh'?'选个时长或开始计时吧 ⏱️':'Pick a time first ⏱️'); return; }
+  stopTimer();
+  buildQuestions();
+  flowStep(2);
+}
+function buildQuestions(){
+  const p=S.profiles[flow.pid]; const L=flow.lang; const tier=tierOf(p);
+  const openN = tier===1?1:2;
+  const opens = pick(QUESTIONS.open[tier][L], openN).map(q=>({kind:'open', q}));
+  const mc = pick(QUESTIONS.mc[L], 1).map(q=>({kind:'mc', q:q.q, o:q.o}));
+  flow.questions=[...mc, ...opens]; flow.answers={};
+}
+function answerMC(i,oi){ flow.answers[i]=oi; renderFlow(); }
+function answerOpen(i,v){ flow.answers[i]=v; }
+async function getCheer(i){
+  const ans=(flow.answers[i]||'').trim();
+  const L=flow.lang;
+  if(!ans){ toast(L==='zh'?'先说说你的想法吧 😊':'Share your thought first 😊'); return; }
+  const bub=$('#bub'+i);
+  if(bub){ bub.classList.remove('hidden'); bub.textContent='🐾 …'; }
+  const p=S.profiles[flow.pid];
+  const age = p.band==='young' ? 7 : 10;
+  let msg = await aiEncourage(flow.book, age, L, flow.questions[i].q, ans); // live AI if available
+  if(!msg) msg = pick(CHEERS[L],1)[0];                                      // warm fallback
+  flow.cheers[i]=msg;
+  if(bub){ bub.classList.remove('hidden'); bub.textContent='🐾 '+msg; }
+}
+
+/* ---------- timer ---------- */
+let timerSec=0, timerRunning=false, timerInt=null;
+function toggleTimer(){ timerRunning?stopTimer():runTimer(); $('#timerToggle').textContent=timerRunning?'⏸ 暂停':'▶️ 开始计时'; }
+function runTimer(){ timerRunning=true; timerInt=setInterval(()=>{ timerSec++; const d=$('#timerDisp'); if(d) d.textContent=String(Math.floor(timerSec/60)).padStart(2,'0')+':'+String(timerSec%60).padStart(2,'0'); },1000); }
+function stopTimer(){ timerRunning=false; clearInterval(timerInt); }
+function resetTimer(){ stopTimer(); timerSec=0; flow.minutes=0; renderFlow(); }
+
+/* ---------- speech (optional enhancement) ---------- */
+function startSpeech(i,lang){
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if(!SR){ toast('请用键盘上的 🎤 听写'); return; }
+  const r=new SR(); r.lang = lang==='zh'?'zh-CN':'en-US'; r.interimResults=false;
+  r.onresult=e=>{ const t=e.results[0][0].transcript; const ta=$('#ans'+i); ta.value=(ta.value?ta.value+' ':'')+t; flow.answers[i]=ta.value; };
+  r.onerror=()=>toast('听不清，试试键盘上的 🎤');
+  try{ r.start(); toast(lang==='zh'?'请说话… 🎤':'Listening… 🎤'); }catch(e){ toast('请用键盘 🎤'); }
+}
+
+/* ---------- finish & scoring ---------- */
+function finishCheckin(){
+  const p=S.profiles[flow.pid];
+  // require open answers filled
+  const missing = flow.questions.some((q,i)=> q.kind==='open' && !(flow.answers[i]&&flow.answers[i].trim()));
+  if(missing){ toast(flow.lang==='zh'?'把"说一说"答完整再完成哦 😊':'Finish the "Tell me" answers first 😊'); return; }
+  const mcAnswered = flow.questions.some((q,i)=> q.kind==='mc' && flow.answers[i]!==undefined);
+  if(!mcAnswered){ toast(flow.lang==='zh'?'选一选还没选 😊':'Pick the multiple-choice answer 😊'); return; }
+
+  // scoring
+  const base=10;
+  const timeBonus=Math.min(Math.floor(flow.minutes/2),12);
+  const qBonus=flow.questions.length*4;
+  // streak update
+  const t=todayStr();
+  let newStreak;
+  if(p.lastDate===t) newStreak=Math.max(p.streak,1);
+  else if(p.lastDate && dayDiff(p.lastDate,t)===1) newStreak=p.streak+1;
+  else newStreak=1;
+  const streakBonus = newStreak>=7?15 : newStreak>=3?8 : 0;
+  const total=base+timeBonus+qBonus+streakBonus;
+
+  const before={lv:levelOf(p)};
+  p.points+=total;
+  if(p.lastDate!==t) p.totalCheckins+=1;
+  p.streak=newStreak; p.lastDate=t;
+
+  // record (answers saved for parent review)
+  const answers=flow.questions.map((q,i)=>({q:q.q, kind:q.kind, a: q.kind==='mc'? (q.o[flow.answers[i]]) : flow.answers[i], cheer: flow.cheers[i]||''}));
+  p.history.unshift({ ts:Date.now(), book:flow.book, lang:flow.lang, type:typeLabel(flow.type,flow.lang), minutes:flow.minutes, points:total, answers });
+
+  // badges
+  const newBadges=[];
+  const langsRead=new Set(p.history.map(h=>h.lang));
+  function addBadge(b){ if(!p.badges.includes(b)){ p.badges.push(b); newBadges.push(b); } }
+  if(newStreak>=7) addBadge('🔥 连击7天 7-day streak');
+  if(p.totalCheckins>=10) addBadge('📚 读满10次 10 books');
+  if(p.totalCheckins>=30) addBadge('🏆 读满30次 30 books');
+  if(langsRead.has('zh')&&langsRead.has('en')) addBadge('🌏 双语达人 Bilingual');
+  if(flow.minutes>=30) addBadge('⏱️ 专注30分钟 30-min focus');
+
+  const after={lv:levelOf(p)};
+  const leveledUp = after.lv>before.lv;
+  let newCompanion=null;
+  if(leveledUp && after.lv<=COMPANIONS.length) newCompanion=COMPANIONS[after.lv-1];
+
+  save();
+  showResult(flow.pid, {base,timeBonus,qBonus,streakBonus,total,newStreak,leveledUp,after,newCompanion,newBadges});
+}
+
+function showResult(pid, r){
+  const p=S.profiles[pid];
+  const o=$('#overlay');
+  o.innerHTML=`<div class="sheet"><div class="result">
+    <div class="hooray">${r.leveledUp?'🎊 升级啦！LEVEL UP!':'🎉 太棒了！Awesome!'}</div>
+    <div class="pts-pop">+${r.total}</div>
+    <div class="sub">⭐ 总分 ${p.points} · 🔥 连击 ${r.newStreak} 天</div>
+    <div class="breakdown">
+      <div><span>📖 完成打卡 Check-in</span><span>+${r.base}</span></div>
+      <div><span>⏱️ 阅读时长 Reading time</span><span>+${r.timeBonus}</span></div>
+      <div><span>💬 回答问题 Questions</span><span>+${r.qBonus}</span></div>
+      ${r.streakBonus?`<div><span>🔥 连击奖励 Streak bonus</span><span>+${r.streakBonus}</span></div>`:''}
+      <div><span>合计 Total</span><span>+${r.total}</span></div>
+    </div>
+    ${r.leveledUp?`<div class="unlock">🆙 升到 Lv.${r.after.lv} · ${levelName(r.after.lv)}</div>`:''}
+    ${r.newCompanion?`<div class="unlock">🐾 新伙伴加入！New friend: <span style="font-size:32px">${r.newCompanion}</span></div>`:''}
+    ${r.newBadges.length?`<div class="unlock">🏅 新徽章 New badge:<br>${r.newBadges.join('<br>')}</div>`:''}
+    <button class="big-btn" onclick="closeFlow()">回到主页 Back home</button>
+  </div></div>`;
+  confetti();
+}
+
+/* ---------- REWARDS ---------- */
+function renderRewards(pid){
+  const p=S.profiles[pid];
+  app.innerHTML=`
+    <div class="topbar">
+      <button class="ghost-btn" onclick="go('dash',{pid:'${pid}'})">← 返回</button>
+      <div class="spacer"></div>
+      <div class="logo" style="font-size:18px">🎁 奖励商店</div>
+    </div>
+    <div class="card">
+      <div class="section-title">${p.emoji} ${p.name} · ⭐ ${p.points} 分可用</div>
+      <div class="sub">用积分兑换奖励。Trade your points for rewards!${S.settings.requireParentConfirm?' （兑换需家长确认）':''}</div>
+      ${S.rewards.map(r=>`
+        <div class="reward">
+          <div class="ic">${r.icon}</div>
+          <div class="rinfo"><div class="rname">${r.name}</div><div class="rcost">需要 ${r.cost} 分</div></div>
+          <button class="redeem" ${p.points<r.cost?'disabled':''} onclick="redeem('${pid}','${r.id}')">${p.points<r.cost?'分数不够':'兑换'}</button>
+        </div>`).join('')}
+    </div>
+    ${S.redemptions.filter(x=>x.pid===pid).length?`<div class="card">
+      <div class="section-title">🧾 已兑换 Redeemed</div>
+      ${S.redemptions.filter(x=>x.pid===pid).slice(0,8).map(x=>`<div class="hist-top" style="padding:6px 0"><span>${x.icon} ${x.name}</span><span>-${x.cost} · ${x.date}</span></div>`).join('')}
+    </div>`:''}
+  `;
+}
+function redeem(pid,rid){
+  const p=S.profiles[pid]; const r=S.rewards.find(x=>x.id===rid);
+  if(p.points<r.cost) return;
+  const doIt=()=>{ p.points-=r.cost; S.redemptions.unshift({pid, name:r.name, icon:r.icon, cost:r.cost, date:todayStr()}); save(); toast('🎉 兑换成功！告诉爸爸妈妈领取吧'); renderRewards(pid); };
+  if(S.settings.requireParentConfirm){ parentGate(()=>doIt()); } else doIt();
+}
+// lightweight parent gate: a small arithmetic question kids can't easily pass impulsively
+function parentGate(onOk){
+  const a=Math.floor(Math.random()*8)+6, b=Math.floor(Math.random()*8)+6;
+  const o=document.createElement('div'); o.className='overlay'; o.style.alignItems='center';
+  o.innerHTML=`<div class="sheet" style="border-radius:24px;max-width:380px;margin:0 16px">
+    <div class="section-title">🔒 家长确认 Parent check</div>
+    <div class="sub">请家长输入答案 / Parent, solve: <b>${a} + ${b} = ?</b></div>
+    <input class="ti" id="gateIn" inputmode="numeric" style="margin-top:12px" placeholder="答案">
+    <div class="row-btns"><button class="pill-btn" onclick="this.closest('.overlay').remove()">取消</button>
+    <button class="pill-btn" style="background:var(--leaf);color:#fff;border-color:var(--leaf)" onclick="if(+document.getElementById('gateIn').value===${a+b}){this.closest('.overlay').remove();(${onOk.toString()})()}else{document.getElementById('gateIn').value='';document.getElementById('gateIn').placeholder='再试一次'}">确认</button></div>
+  </div>`;
+  document.body.appendChild(o);
+}
+
+/* ---------- HISTORY ---------- */
+function renderHistory(pid){
+  const p=S.profiles[pid];
+  app.innerHTML=`
+    <div class="topbar">
+      <button class="ghost-btn" onclick="go('dash',{pid:'${pid}'})">← 返回</button>
+      <div class="spacer"></div>
+      <div class="logo" style="font-size:18px">📒 阅读记录</div>
+    </div>
+    <div class="card">
+      <div class="section-title">${p.emoji} ${p.name} 的阅读历程</div>
+      <div class="sub">爸爸妈妈可以在这里看孩子的回答，了解阅读质量。</div>
+      ${p.history.length? p.history.slice(0,40).map(h=>{
+        const d=new Date(h.ts); const ds=`${d.getMonth()+1}/${d.getDate()} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+        return `<div class="hist-item">
+          <div class="hist-top"><span>${ds} · ${h.lang==='zh'?'中文':'EN'}${h.type?' · '+h.type:''}</span><span>⏱️${h.minutes}分 · +${h.points}⭐</span></div>
+          <div class="hist-book">📖 ${h.book}</div>
+          ${h.answers.map(a=>`<div class="hist-ans"><b>${a.q}</b><br>${a.a||'—'}${a.cheer?`<br><span style="color:var(--leaf-d)">🐾 ${a.cheer}</span>`:''}</div>`).join('')}
+        </div>`; }).join('')
+      : '<div class="sub" style="margin-top:10px">还没有记录。开始第一次打卡吧！</div>'}
+    </div>
+  `;
+}
+
+/* ---------- PARENT SETTINGS ---------- */
+function renderParent(){
+  app.innerHTML=`
+    <div class="topbar">
+      <button class="ghost-btn" onclick="go('family')">← 返回</button>
+      <div class="spacer"></div>
+      <div class="logo" style="font-size:18px">⚙️ 家长设置</div>
+    </div>
+    <div class="card">
+      <div class="section-title">👨‍👩‍👧‍👦 成员 Members</div>
+      <div class="sub">点表情可改头像，可改名字与年龄档（影响起始难度与时长目标）。</div>
+      ${S.order.map(id=>{ const p=S.profiles[id];
+        return `<div class="prow">
+          <button class="ghost-btn" style="font-size:24px;padding:6px 10px" onclick="changeEmoji('${id}')">${p.emoji}</button>
+          <input class="ti" value="${p.name}" onchange="S.profiles['${id}'].name=this.value;save()">
+          <button class="mini ${p.band==='young'?'':'gray'}" onclick="S.profiles['${id}'].band='young';save();renderParent()">小宝</button>
+          <button class="mini ${p.band==='big'?'':'gray'}" onclick="S.profiles['${id}'].band='big';save();renderParent()">大孩</button>
+        </div>`; }).join('')}
+    </div>
+    <div class="card">
+      <div class="section-title">🎁 奖励 Rewards</div>
+      ${S.rewards.map(r=>`<div class="prow">
+        <input class="ti" style="max-width:60px;flex:0 0 56px;text-align:center" value="${r.icon}" onchange="S.rewards.find(x=>x.id==='${r.id}').icon=this.value;save()">
+        <input class="ti" value="${r.name.replace(/"/g,'&quot;')}" onchange="S.rewards.find(x=>x.id==='${r.id}').name=this.value;save()">
+        <input class="ti" style="max-width:80px;flex:0 0 76px" inputmode="numeric" value="${r.cost}" onchange="S.rewards.find(x=>x.id==='${r.id}').cost=+this.value||0;save()">
+        <button class="mini gray" onclick="S.rewards=S.rewards.filter(x=>x.id!=='${r.id}');save();renderParent()">删</button>
+      </div>`).join('')}
+      <button class="pill-btn" style="margin-top:12px" onclick="S.rewards.push({id:'r'+Date.now(),icon:'🎈',name:'新奖励 New reward',cost:50});save();renderParent()">＋ 添加奖励</button>
+    </div>
+    <div class="card">
+      <div class="section-title">🔧 其他 Options</div>
+      <div class="prow">
+        <div style="flex:1">兑换奖励需要家长确认<div class="sub">Require parent check to redeem</div></div>
+        <button class="mini ${S.settings.requireParentConfirm?'':'gray'}" onclick="S.settings.requireParentConfirm=!S.settings.requireParentConfirm;save();renderParent()">${S.settings.requireParentConfirm?'已开启':'已关闭'}</button>
+      </div>
+      <div class="prow" style="margin-top:16px">
+        <button class="pill-btn" style="flex:1" onclick="exportData()">📤 导出数据备份</button>
+        <button class="pill-btn" style="flex:1;color:var(--berry)" onclick="if(confirm('确定要清空所有数据吗？不可恢复！')){S=defaultState();save();go('family')}">🗑️ 重置全部</button>
+      </div>
+    </div>
+    <div class="note">提示：书的类型与语言会自动识别（联网即可，识别错了点一下就能改）。开放题主打"鼓励表达、不判对错"，孩子答完点"听听小伙伴"会得到温暖回应与追问。当本应用运行在 Claude.ai 中时，这些回应由真实 AI 生成；自行托管时也有内置的鼓励回应。升级机制让阅读时长与难度随等级自动"循序渐进"。</div>
+  `;
+}
+function changeEmoji(id){
+  const choices=['🦊','🦋','🐻','🐼','🦁','🐯','🐰','🐸','🦉','🐧','🐙','🦄','🐲','🐳','🦖','🦕','🐝','🦜'];
+  const cur=S.profiles[id].emoji; const idx=choices.indexOf(cur);
+  S.profiles[id].emoji=choices[(idx+1)%choices.length]; save(); renderParent();
+}
+function exportData(){
+  const blob=new Blob([JSON.stringify(S,null,2)],{type:'application/json'});
+  const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='reading-quest-backup.json'; a.click();
+  toast('已导出备份 📤');
+}
+
+/* ---------- confetti ---------- */
+function confetti(){
+  const c=$('#confetti'), ctx=c.getContext('2d');
+  c.width=innerWidth; c.height=innerHeight;
+  const colors=['#23B26B','#3B82F6','#FB923C','#E8517A','#FFD23F'];
+  const N=120, parts=[];
+  for(let i=0;i<N;i++) parts.push({x:Math.random()*c.width,y:-20-Math.random()*c.height*.3,
+    s:6+Math.random()*8, vy:2+Math.random()*4, vx:-2+Math.random()*4, a:Math.random()*Math.PI,
+    va:-.2+Math.random()*.4, col:colors[i%colors.length]});
+  let t=0;
+  (function loop(){
+    ctx.clearRect(0,0,c.width,c.height); t++;
+    parts.forEach(p=>{ p.x+=p.vx; p.y+=p.vy; p.a+=p.va;
+      ctx.save(); ctx.translate(p.x,p.y); ctx.rotate(p.a); ctx.fillStyle=p.col;
+      ctx.fillRect(-p.s/2,-p.s/2,p.s,p.s*.6); ctx.restore(); });
+    if(t<140) requestAnimationFrame(loop); else ctx.clearRect(0,0,c.width,c.height);
+  })();
+}
+
+/* ---------- boot ---------- */
+render();
+</script>
+</body>
+</html>
