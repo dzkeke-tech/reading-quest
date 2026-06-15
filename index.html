@@ -1388,6 +1388,7 @@ function renderParent(){
       </div>
       <div class="prow" style="margin-top:16px">
         <button class="pill-btn" style="flex:1" onclick="exportData()">📤 导出数据备份</button>
+        <button class="pill-btn" style="flex:1" onclick="diagSync()">🔍 测试云端连接</button>
         <button class="pill-btn" style="flex:1;color:var(--berry)" onclick="if(confirm('确定要清空所有数据吗？不可恢复！')){S=defaultState();save();go('family')}">🗑️ 重置全部</button>
       </div>
       <div class="sub" style="margin-top:14px;font-weight:700">✏️ 手动修改积分（可用于补录丢失的分数）</div>
@@ -1417,6 +1418,17 @@ function exportData(){
   const blob=new Blob([JSON.stringify(S,null,2)],{type:'application/json'});
   const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='reading-quest-backup.json'; a.click();
   toast('已导出备份 📤');
+}
+async function diagSync(){
+  if(!WORKER_URL){ toast('WORKER_URL 未配置'); return; }
+  toast('测试中…');
+  try{
+    const r=await fetch(WORKER_URL+'/sync',{method:'GET'});
+    const txt=await r.text();
+    alert('状态码: '+r.status+'\n返回内容: '+txt.slice(0,300));
+  }catch(e){
+    alert('请求失败: '+e.message);
+  }
 }
 
 /* ---------- confetti ---------- */
