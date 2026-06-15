@@ -177,18 +177,73 @@
    阅读探险队 · Reading Quest  — single-file offline app
    ============================================================ */
 
-/* ---------- storage shim (localStorage + in-memory fallback) ---------- */
-const Store = (() => {
-  let mem = {}, ok = true;
-  try { localStorage.setItem('__t','1'); localStorage.removeItem('__t'); }
-  catch(e){ ok = false; }
-  return {
-    persistent: ok,
-    get(k){ try { return ok ? localStorage.getItem(k) : (mem[k] ?? null); } catch(e){ return mem[k] ?? null; } },
-    set(k,v){ try { ok ? localStorage.setItem(k,v) : (mem[k]=v); } catch(e){ mem[k]=v; } }
-  };
-})();
+/* ============================================================
+   存储层：云端优先（Cloudflare KV via Worker /sync）
+   流程：
+     load()  → 先取本地缓存（即时显示），再拉云端（若更新则刷新）
+     save()  → 同时写本地缓存 + 推送到云端（异步，不阻塞 UI）
+   离线/Worker 未配置时自动退化为纯本地 localStorage。
+   ============================================================ */
 const KEY = 'readingquest_v1';
+
+/* localStorage shim */
+const LS = (() => {
+  try { localStorage.setItem('__t','1'); localStorage.removeItem('__t'); return localStorage; }
+  catch(e){ const m={}; return { getItem:k=>m[k]??null, setItem:(k,v)=>{m[k]=v;} }; }
+})();
+
+/* 云端读写 */
+async function cloudGet(){
+  if(!WORKER_URL) return null;
+  try{
+    const r=await fetch(WORKER_URL+'/sync',{method:'GET',headers:{'Content-Type':'application/json'}});
+    if(!r.ok) return null;
+    const d=await r.json(); return d||null;
+  }catch(e){ return null; }
+}
+async function cloudPut(obj){
+  if(!WORKER_URL) return;
+  try{
+    await fetch(WORKER_URL+'/sync',{method:'PUT',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify(obj)});
+  }catch(e){}
+}
+
+/* 同步状态 UI */
+let _syncEl=null;
+function setSyncStatus(msg, color){
+  if(!_syncEl){ _syncEl=document.createElement('div');
+    Object.assign(_syncEl.style,{position:'fixed',bottom:'8px',right:'12px',fontSize:'12px',
+      color:'#fff',background:'rgba(42,51,66,.65)',borderRadius:'10px',padding:'4px 10px',zIndex:'99',
+      backdropFilter:'blur(4px)',transition:'opacity .4s'});
+    document.body.appendChild(_syncEl); }
+  _syncEl.textContent=msg; _syncEl.style.opacity='1'; _syncEl.style.background=color||'rgba(42,51,66,.65)';
+  clearTimeout(_syncEl._t); _syncEl._t=setTimeout(()=>{ _syncEl.style.opacity='0'; },2500);
+}
+
+function load(){
+  const raw=LS.getItem(KEY);
+  if(raw){ try{ return migrate(JSON.parse(raw)); }catch(e){} }
+  return defaultState();
+}
+function save(){
+  LS.setItem(KEY, JSON.stringify(S));
+  // 异步推云端，不阻塞 UI
+  setSyncStatus('同步中… ☁️');
+  cloudPut(S).then(()=>setSyncStatus('已同步 ✅','rgba(35,178,107,.8)')).catch(()=>setSyncStatus('离线，本地已保存 💾','rgba(200,100,0,.8)'));
+}
+
+/* 启动时拉云端数据（如果比本地新则覆盖） */
+async function syncFromCloud(){
+  setSyncStatus('正在从云端加载… ☁️');
+  const remote=await cloudGet();
+  if(!remote){ setSyncStatus(WORKER_URL?'无法连接云端，使用本地数据 💾':'本地模式 💾'); return; }
+  // 用云端数据覆盖本地（云端是多设备汇总的真实来源）
+  S=migrate(remote);
+  LS.setItem(KEY, JSON.stringify(S));
+  setSyncStatus('云端数据已加载 ✅','rgba(35,178,107,.8)');
+  render();   // 用云端数据重新渲染
+}
 
 /* ---------- defaults ---------- */
 const COMPANIONS = ['🐢','🦊','🦉','🐼','🦋','🐙','🐳','🦁','🦒','🐧','🦜','🐝','🦄','🦩','🐬','🦚'];
@@ -523,7 +578,7 @@ async function callClaude(prompt, maxTokens){
   try{
     let res;
     if(WORKER_URL){
-      res=await fetch(WORKER_URL,{ method:'POST', headers:{'Content-Type':'application/json'}, signal:ctrl.signal,
+      res=await fetch(WORKER_URL+'/ai',{ method:'POST', headers:{'Content-Type':'application/json'}, signal:ctrl.signal,
         body:JSON.stringify({ prompt, max_tokens:maxTokens||300 }) });
     } else {
       res=await fetch('https://api.anthropic.com/v1/messages',{ method:'POST', headers:{'Content-Type':'application/json'}, signal:ctrl.signal,
@@ -667,9 +722,7 @@ function renderFamily(){
             <div class="lp">${w}</div></div>`; }).join('')}
       </div>
     </div>
-    <div class="note">${Store.persistent
-      ? '✅ 数据已保存在本设备。建议放到 GitHub Pages 后"添加到主屏幕"，每人用自己的 iPad 体验最佳。'
-      : '⚠️ 当前在预览环境，刷新后数据不会保存。下载此 HTML 到 iPad 上独立打开即可正常记录积分。'}</div>
+    <div class="note">数据自动同步到云端（Cloudflare KV），删 App 或换设备不会丢失。离线时本地保存，联网后自动上传。</div>
   `;
 }
 
@@ -1337,6 +1390,20 @@ function renderParent(){
         <button class="pill-btn" style="flex:1" onclick="exportData()">📤 导出数据备份</button>
         <button class="pill-btn" style="flex:1;color:var(--berry)" onclick="if(confirm('确定要清空所有数据吗？不可恢复！')){S=defaultState();save();go('family')}">🗑️ 重置全部</button>
       </div>
+      <div class="sub" style="margin-top:14px;font-weight:700">✏️ 手动修改积分（可用于补录丢失的分数）</div>
+      ${S.order.map(id=>{ const p=S.profiles[id]; return `
+        <div class="prow" style="margin-top:8px">
+          <span style="font-size:22px">${p.emoji}</span>
+          <span style="width:60px;font-weight:700">${p.name}</span>
+          <input class="ti" id="pts_${id}" inputmode="numeric" style="max-width:100px;flex:0 0 96px;text-align:center"
+                 value="${p.points}" placeholder="积分">
+          <button class="mini" onclick="
+            const v=parseInt(document.getElementById('pts_${id}').value)||0;
+            S.profiles['${id}'].points=v; save();
+            toast('${p.name} 积分已更新为 '+v+' 分 ✅');
+          ">确认</button>
+        </div>`; }).join('')}
+      </div>
     </div>
     <div class="note">分类采用"虚构/非虚构 + 体裁"两层（可自动识别、点一下可改）。每日目标按中/英文分开设定（Charles 当前各 30 分钟）。"📚 书架"按孩子的水平推荐书目——英文用学校的 Lexile 分级标注难度，点书即可开始打卡。开放题主打"鼓励表达、不判对错"。</div>
   `;
@@ -1373,6 +1440,7 @@ function confetti(){
 
 /* ---------- boot ---------- */
 render();
+syncFromCloud();  // 异步拉云端，完成后自动刷新
 </script>
 </body>
 </html>
