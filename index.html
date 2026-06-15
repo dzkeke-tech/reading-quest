@@ -709,6 +709,7 @@ function renderFamily(){
     <div class="topbar">
       <div class="logo">📖 阅读探险队 <span class="badge">Reading Quest</span></div>
       <div class="spacer"></div>
+      <button class="ghost-btn" onclick="syncFromCloud().then(()=>toast('已同步最新数据 ✅'))">🔄</button>
       <button class="ghost-btn" onclick="openParent()">⚙️ 家长</button>
     </div>
     <div class="card">
@@ -1414,6 +1415,7 @@ function renderParent(){
             const v=parseInt(document.getElementById('pts_${id}').value)||0;
             S.profiles['${id}'].points=v; save();
             toast('${p.name} 积分已更新为 '+v+' 分 ✅');
+            renderParent();
           ">确认</button>
         </div>`; }).join('')}
       </div>
