@@ -194,12 +194,13 @@ const LS = (() => {
 
 /* 云端读写 */
 async function cloudGet(){
-  if(!WORKER_URL) return null;
+  if(!WORKER_URL) return undefined;   // undefined = 未配置
   try{
-    const r=await fetch(WORKER_URL+'/sync',{method:'GET',headers:{'Content-Type':'application/json'}});
-    if(!r.ok) return null;
-    const d=await r.json(); return d||null;
-  }catch(e){ return null; }
+    const r=await fetch(WORKER_URL+'/sync',{method:'GET'});
+    if(!r.ok) return undefined;        // undefined = 连接失败
+    const d=await r.json();
+    return d;                          // null = 云端空，object = 有数据
+  }catch(e){ return undefined; }
 }
 async function cloudPut(obj){
   if(!WORKER_URL) return;
@@ -237,12 +238,23 @@ function save(){
 async function syncFromCloud(){
   setSyncStatus('正在从云端加载… ☁️');
   const remote=await cloudGet();
-  if(!remote){ setSyncStatus(WORKER_URL?'无法连接云端，使用本地数据 💾':'本地模式 💾'); return; }
-  // 用云端数据覆盖本地（云端是多设备汇总的真实来源）
+  if(remote===undefined){
+    // 连接失败或未配置
+    setSyncStatus(WORKER_URL?'无法连接云端，使用本地数据 💾':'本地模式 💾');
+    return;
+  }
+  if(remote===null){
+    // 云端是空的（第一次使用）→ 把本地数据推上去初始化
+    setSyncStatus('初始化云端数据… ☁️');
+    await cloudPut(S);
+    setSyncStatus('云端已初始化 ✅','rgba(35,178,107,.8)');
+    return;
+  }
+  // 云端有数据 → 覆盖本地
   S=migrate(remote);
   LS.setItem(KEY, JSON.stringify(S));
   setSyncStatus('云端数据已加载 ✅','rgba(35,178,107,.8)');
-  render();   // 用云端数据重新渲染
+  render();
 }
 
 /* ---------- defaults ---------- */
