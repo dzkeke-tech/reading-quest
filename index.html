@@ -270,7 +270,7 @@ function defaultState(){
 }
 let S = load();
 function load(){
-  const raw = Store.get(KEY);
+  const raw = LS.getItem(KEY);
   if(raw){ try{ return migrate(JSON.parse(raw)); }catch(e){} }
   return defaultState();
 }
@@ -287,7 +287,7 @@ function migrate(s){
   if(!s.settings) s.settings={requireParentConfirm:true};
   return s;
 }
-function save(){ Store.set(KEY, JSON.stringify(S)); }
+/* save() defined in storage layer above */
 
 /* ---------- level / goal / tier logic (progressive) ---------- */
 const LV_STEP = 60; // points per level
