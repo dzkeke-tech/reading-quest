@@ -203,11 +203,13 @@ async function cloudGet(){
   }catch(e){ return undefined; }
 }
 async function cloudPut(obj){
-  if(!WORKER_URL) return;
+  if(!WORKER_URL) return {ok:false, reason:'no-url'};
   try{
-    await fetch(WORKER_URL+'/sync',{method:'PUT',headers:{'Content-Type':'application/json'},
+    const r=await fetch(WORKER_URL+'/sync',{method:'PUT',headers:{'Content-Type':'application/json'},
       body:JSON.stringify(obj)});
-  }catch(e){}
+    if(!r.ok){ const t=await r.text(); return {ok:false, reason:'http '+r.status+' '+t.slice(0,120)}; }
+    return {ok:true};
+  }catch(e){ return {ok:false, reason:e.message}; }
 }
 
 /* 同步状态 UI */
@@ -229,9 +231,11 @@ function load(){
 }
 function save(){
   LS.setItem(KEY, JSON.stringify(S));
-  // 异步推云端，不阻塞 UI
   setSyncStatus('同步中… ☁️');
-  cloudPut(S).then(()=>setSyncStatus('已同步 ✅','rgba(35,178,107,.8)')).catch(()=>setSyncStatus('离线，本地已保存 💾','rgba(200,100,0,.8)'));
+  cloudPut(S).then(res=>{
+    if(res.ok) setSyncStatus('已同步云端 ✅','rgba(35,178,107,.8)');
+    else setSyncStatus('未同步：'+res.reason+' 💾','rgba(200,100,0,.85)');
+  });
 }
 
 /* 启动时拉云端数据（如果比本地新则覆盖） */
@@ -246,8 +250,8 @@ async function syncFromCloud(){
   if(remote===null){
     // 云端是空的（第一次使用）→ 把本地数据推上去初始化
     setSyncStatus('初始化云端数据… ☁️');
-    await cloudPut(S);
-    setSyncStatus('云端已初始化 ✅','rgba(35,178,107,.8)');
+    const res=await cloudPut(S);
+    setSyncStatus(res.ok?'云端已初始化 ✅':'初始化失败：'+res.reason, res.ok?'rgba(35,178,107,.8)':'rgba(200,100,0,.85)');
     return;
   }
   // 云端有数据 → 覆盖本地
@@ -577,6 +581,8 @@ function hasCJK(s){ return /[\u3400-\u9fff]/.test(s); }
 
 /* ---------- AI layer (auto-active inside Claude.ai; via your Worker when self-hosted) ---------- */
 /* ▼▼▼ 把你的 Cloudflare Worker 地址粘到这里，自托管(GitHub Pages)即可启用真·AI ▼▼▼ */
+const APP_VERSION = "2026-06-16-v7";  // 版本标记：控制台输入 APP_VERSION 可核对线上版本
+window.APP_VERSION = APP_VERSION;
 const WORKER_URL = "https://reading-quest-ai.dzkeke.workers.dev";
 /* 留空时：在 Claude.ai 里运行会自动直连 AI；自托管则使用内置鼓励语兜底 */
 
@@ -725,17 +731,18 @@ function renderFamily(){
       </div>
     </div>
     <div class="card">
-      <div class="section-title">🏆 本周家庭阅读榜 Family Board</div>
-      <div class="sub">全家本周共 ${totalThisWeek} 分 · 一起加油！</div>
+      <div class="section-title">🏆 家庭阅读榜 Family Board</div>
+      <div class="sub">按总积分排名 · 全家本周共读 ${totalThisWeek} 分，一起加油！</div>
       <div class="leader">
-        ${S.order.map(id=>{ const p=S.profiles[id]; const w=weeklyPoints(p);
+        ${[...S.order].sort((a,b)=>S.profiles[b].points-S.profiles[a].points).map(id=>{ const p=S.profiles[id]; const w=weeklyPoints(p); const maxPts=Math.max(1,...S.order.map(x=>S.profiles[x].points));
           return `<div class="lrow"><div class="la">${p.emoji}</div>
             <div class="lname">${p.name}</div>
-            <div class="lbar"><i style="width:${Math.round(w/maxWk*100)}%"></i></div>
-            <div class="lp">${w}</div></div>`; }).join('')}
+            <div class="lbar"><i style="width:${Math.round(p.points/maxPts*100)}%"></i></div>
+            <div class="lp">${p.points}<span style="font-size:11px;color:var(--ink-soft)"> 总</span></div></div>`; }).join('')}
       </div>
+      <div class="sub" style="margin-top:8px;font-size:12px">本周打卡得分：${S.order.map(id=>`${S.profiles[id].name} ${weeklyPoints(S.profiles[id])}`).join(' · ')}</div>
     </div>
-    <div class="note">数据自动同步到云端（Cloudflare KV），删 App 或换设备不会丢失。离线时本地保存，联网后自动上传。</div>
+    <div class="note">数据自动同步到云端（Cloudflare KV），删 App 或换设备不会丢失。离线时本地保存，联网后自动上传。<br><span style="opacity:.5">版本 ${APP_VERSION}</span></div>
   `;
 }
 
