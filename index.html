@@ -693,7 +693,7 @@ function hasCJK(s){ return /[\u3400-\u9fff]/.test(s); }
 
 /* ---------- AI layer (auto-active inside Claude.ai; via your Worker when self-hosted) ---------- */
 /* ▼▼▼ 把你的 Cloudflare Worker 地址粘到这里，自托管(GitHub Pages)即可启用真·AI ▼▼▼ */
-const APP_VERSION = "2026-06-18-v11b";  // 版本标记：控制台输入 APP_VERSION 可核对线上版本
+const APP_VERSION = "2026-06-18-v11c";  // 版本标记：控制台输入 APP_VERSION 可核对线上版本
 window.APP_VERSION = APP_VERSION;
 const WORKER_URL = "https://reading-quest-ai.dzkeke.workers.dev";
 /* 留空时：在 Claude.ai 里运行会自动直连 AI；自托管则使用内置鼓励语兜底 */
@@ -1264,6 +1264,7 @@ function finishCheckin(){
   // 参与
   const qBonus=flow.questions.length*4;
   // 坚持
+  const t=todayStr();
   let newStreak;
   if(p.lastDate===t) newStreak=Math.max(p.streak,1);
   else if(p.lastDate && dayDiff(p.lastDate,t)===1) newStreak=p.streak+1;
