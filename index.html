@@ -327,14 +327,17 @@ function todayMinutes(p, lang){
 }
 function tierOf(p){
   const lv = levelOf(p);
-  const base = p.band==='young' ? 1 : 2;
-  return Math.min(3, base + Math.floor((lv-1)/3));
+  let base;
+  if(p.band==='young') base=1;
+  else if(p.band==='adult') base=3;   // 大人从成人级起步
+  else base=2;                         // 大童
+  return Math.min(4, base + Math.floor((lv-1)/3));
 }
 function companionsUnlocked(p){ return Math.min(levelOf(p), COMPANIONS.length); }
 
 /* ---------- question bank (bilingual, tiered) ---------- */
 /* 字数要求：tier1 中文30字/英文20词，tier2 中文50字/英文35词，tier3 中文80字/英文50词 */
-const MIN_CHARS = { zh:{1:30,2:50,3:80}, en:{1:20,2:35,3:50} };  // zh=字数, en=词数
+const MIN_CHARS = { zh:{1:30,2:50,3:80,4:120}, en:{1:20,2:35,3:50,4:80} };  // zh=字数, en=词数
 const QUESTIONS = {
   mc: {
     zh:[
@@ -422,6 +425,24 @@ const QUESTIONS = {
         'If you could interview one character, what three questions would you ask? Explain why each question matters to you.',
         'Has this book changed or challenged the way you think about something? Describe what you believed before, and what\'s different now.',
         'Write a closing reflection: what the book is about, your biggest takeaway, and one scene or sentence you\'ll remember and why.'
+      ]},
+    4:{ // 成人/高阶：文学分析、主题思辨 — 中文120字/英文80词起
+      zh:[
+        '这部作品的核心主题是什么？作者通过怎样的叙事结构、象征或人物弧光来构建它？请结合具体文本展开分析。',
+        '分析一个主要人物的复杂性与内在矛盾：是什么塑造了他/她？作者对这个人物持怎样的态度，你如何看出来？',
+        '这部作品的叙事视角（第一/第三人称、可靠/不可靠叙述者等）如何影响了你的阅读体验和对主题的理解？',
+        '作品反映了怎样的时代、社会或思想语境？它在多大程度上是其时代的产物，又有哪些超越时代的部分？',
+        '你认为这部作品最值得商榷或最有争议的地方是什么？提出你的批评，并尽量公正地呈现对立的解读。',
+        '将这部作品与同主题或同作者的另一部作品对照，比较它们在处理方式、深度或立场上的异同。',
+        '这部作品在情感或思想上给你带来了什么？它是否改变了你看待某个问题的方式？请具体说明。'
+      ], en:[
+        'What is the central theme of this work, and how does the author construct it through narrative structure, symbolism, or character arcs? Analyze with specific textual evidence.',
+        'Analyze the complexity and inner contradictions of a major character. What shapes them? What attitude does the author take toward this character, and how can you tell?',
+        'How does the narrative point of view (first/third person, reliable/unreliable narrator) shape your reading experience and your understanding of the themes?',
+        'What historical, social, or intellectual context does this work reflect? To what extent is it a product of its time, and what transcends it?',
+        'What do you find most debatable or controversial in this work? Offer your critique, and represent the opposing interpretation as fairly as you can.',
+        'Compare this work with another on a similar theme or by the same author. How do they differ in approach, depth, or stance?',
+        'What did this work give you intellectually or emotionally? Did it change how you see a particular issue? Be specific.'
       ]}
   },
   // serial: reading a long book over many days — progress + analysis
@@ -472,9 +493,100 @@ const QUESTIONS = {
         'If you were the editor, which part of today\'s reading would you ask the author to revise? Why would your change make it better?',
         'What has been the most important turning point or scene in the whole book so far? Why does it matter?'
       ]}
+  },
+  // ===== 非虚构：完整读一本/一篇（问主旨、论点、知识、观点，不问故事情节）=====
+  nonfic:{
+    1:{ zh:[
+        '这本书今天主要在讲什么？用你自己的话说一说它的主要内容。',
+        '你今天学到的最有意思的一个知识或事实是什么？为什么它有意思？',
+        '今天读到的内容里，有没有你以前不知道、或者让你惊讶的地方？说说看。',
+        '今天遇到的一个新词或新概念是什么？它是什么意思？',
+        '这本书让你想问作者什么问题？说说你为什么好奇。'
+      ], en:[
+        'What was this reading mainly about today? Explain the main idea in your own words.',
+        'What is the most interesting fact or idea you learned today? Why is it interesting?',
+        'Was there anything that surprised you or that you didn\'t know before? Describe it.',
+        'What is one new word or concept you met today? What does it mean?',
+        'What question would you like to ask the author? Why are you curious about it?'
+      ]},
+    2:{ zh:[
+        '作者今天想说明的主要观点是什么？他/她用了哪些例子或证据来支持？',
+        '把今天读的内容总结成三到四个要点。',
+        '今天的内容和你已经知道的东西有什么联系？或者和你的生活有什么关系？',
+        '作者说的你都同意吗？有没有哪里你想打个问号，或者想再了解一下？',
+        '如果要把今天学到的讲给一个没读过的朋友听，你会怎么用一两句话讲清楚？'
+      ], en:[
+        'What is the main point the author makes today? What examples or evidence support it?',
+        'Summarize today\'s reading in three or four key points.',
+        'How does today\'s reading connect to something you already know, or to your own life?',
+        'Do you agree with everything the author says? Is there anything you question or want to explore more?',
+        'How would you explain what you learned today to a friend in one or two sentences?'
+      ]},
+    3:{ zh:[
+        '这本书的核心论点是什么？作者是如何一步步论证的？你觉得论证得有说服力吗？',
+        '作者的立场或角度是什么？有没有可能存在别的角度或反对意见？说说你的看法。',
+        '今天的内容里，哪些是客观事实，哪些是作者的观点或推论？举例区分一下。',
+        '这本书有没有改变或挑战你原来的某个想法？读之前你怎么想，现在呢？',
+        '把今天学到的最重要的东西写成一段你自己的总结：它讲了什么、为什么重要、你最大的收获是什么。'
+      ], en:[
+        'What is the central argument of this book? How does the author build it step by step? Do you find it convincing?',
+        'What is the author\'s stance or perspective? Could there be other viewpoints or counterarguments? Share your thoughts.',
+        'In today\'s reading, what is objective fact and what is the author\'s opinion or interpretation? Give examples of each.',
+        'Has this book changed or challenged something you used to think? What did you believe before, and now?',
+        'Write your own summary of the most important thing you learned: what it is, why it matters, and your biggest takeaway.'
+      ]},
+    4:{ zh:[
+        '用你自己的话重构作者的核心论证：它的前提是什么、推理链条如何展开、结论是什么？这个论证最薄弱的一环在哪里？',
+        '作者隐含了哪些未明说的假设或价值立场？如果质疑这些前提，整个论证会受到怎样的影响？',
+        '这本书与你读过的其他思想／理论有何对话或冲突？把它放进更大的思想脉络里评价它的贡献与局限。',
+        '区分作者的描述（事实判断）与规范（价值判断）：他在哪里从"是什么"滑向了"应当如何"？这种过渡站得住脚吗？',
+        '如果要写一篇对这本书的批判性书评，你的核心论点会是什么？请给出三条有力的论据。',
+        '这本书的观点对现实问题（社会、政治、个人选择）有什么具体的启示或可操作的含义？',
+        '读完这部分，你的立场是被强化、被动摇、还是变得更复杂了？请诚实地剖析你思想的变化过程。'
+      ], en:[
+        'Reconstruct the author\'s core argument in your own words: what are its premises, how does the reasoning unfold, and what is the conclusion? Where is its weakest link?',
+        'What unstated assumptions or value commitments does the author rely on? If you challenged those premises, how would the argument be affected?',
+        'How does this book converse or conflict with other ideas/theories you\'ve encountered? Situate its contribution and limits within a larger intellectual context.',
+        'Distinguish the author\'s descriptive claims from normative ones: where do they slide from "what is" to "what ought to be"? Is that move justified?',
+        'If you were writing a critical review of this book, what would your central thesis be? Give three strong supporting points.',
+        'What concrete implications do this book\'s ideas have for real-world issues (social, political, personal)? Be specific.',
+        'After this reading, is your position reinforced, shaken, or made more complex? Honestly trace how your thinking shifted.'
+      ]}
+  },
+  nonfic_serial:{
+    1:{ zh:[
+        '今天这部分主要讲了什么？用自己的话说一说。',
+        '今天学到的一个新知识或新事实是什么？',
+        '今天有没有不懂的词或不明白的地方？说说看。'
+      ], en:[
+        'What was today\'s part mainly about? Explain in your own words.',
+        'What is one new fact or idea you learned today?',
+        'Was there a word or part you didn\'t understand today? Describe it.'
+      ]},
+    2:{ zh:[
+        '今天这部分的主要观点或重点是什么？作者用了什么例子说明？',
+        '把今天读的内容总结成几个要点。',
+        '今天学到的和你已经知道的有什么联系？',
+        '今天的内容里有没有你想进一步了解、或想打问号的地方？'
+      ], en:[
+        'What is the main point or focus of today\'s section? What examples does the author use?',
+        'Summarize today\'s reading in a few key points.',
+        'How does today\'s reading connect to what you already know?',
+        'Is there anything today you want to explore further or question?'
+      ]},
+    3:{ zh:[
+        '今天这部分在整本书的论证里起了什么作用？它支持了作者哪个观点？',
+        '今天的内容里，哪些是事实，哪些是作者的观点或推论？',
+        '今天读的有没有让你想到别的书、现实或历史？怎么联系的？',
+        '到目前为止，这本书最让你信服或最让你怀疑的地方是什么？为什么？'
+      ], en:[
+        'How does today\'s section fit into the book\'s overall argument? Which of the author\'s points does it support?',
+        'In today\'s reading, what is fact and what is the author\'s opinion or interpretation?',
+        'Did today\'s reading remind you of another book, real life, or history? How?',
+        'So far, what is most convincing or most questionable in this book? Why?'
+      ]}
   }
 };
-/* 两层体裁分类：虚构/非虚构 + 体裁（参考图书馆 fiction/nonfiction + genre 的科学分法） */
 const GENRES = {
   fiction:[
     {k:'life',     zh:'生活故事', en:'Realistic',        emo:'🏡'},
@@ -581,7 +693,7 @@ function hasCJK(s){ return /[\u3400-\u9fff]/.test(s); }
 
 /* ---------- AI layer (auto-active inside Claude.ai; via your Worker when self-hosted) ---------- */
 /* ▼▼▼ 把你的 Cloudflare Worker 地址粘到这里，自托管(GitHub Pages)即可启用真·AI ▼▼▼ */
-const APP_VERSION = "2026-06-16-v7";  // 版本标记：控制台输入 APP_VERSION 可核对线上版本
+const APP_VERSION = "2026-06-18-v11";  // 版本标记：控制台输入 APP_VERSION 可核对线上版本
 window.APP_VERSION = APP_VERSION;
 const WORKER_URL = "https://reading-quest-ai.dzkeke.workers.dev";
 /* 留空时：在 Claude.ai 里运行会自动直连 AI；自托管则使用内置鼓励语兜底 */
@@ -610,10 +722,11 @@ async function callClaude(prompt, maxTokens){
 }
 async function aiClassify(title){
   const txt=await callClaude(
-    `判断这本童书的分类，返回三项：`+
-    `fic = fiction(虚构) 还是 nonfiction(非虚构)；`+
-    `genre = 体裁键名，虚构可选 life/adventure/animal/classic/humor/mystery/comic/poetry，非虚构可选 science/history/biography/arts/reference；`+
-    `lang = 主要语言 zh 或 en。书名：「${title}」。`+
+    `判断这本书（可能是童书，也可能是成人读物）的分类，返回三项。`+
+    `fic：虚构作品(小说/故事/童话/绘本故事)填 fiction；非虚构(科普/历史/传记/哲学/社会科学/政治/经济/心理/工具书/百科/纪实)填 nonfiction。`+
+    `注意：哲学、社会学、政治学、历史、传记、随笔、思想类著作都属于 nonfiction（非虚构）。`+
+    `genre：虚构可选 life/adventure/animal/classic/humor/mystery/comic/poetry；非虚构可选 science/history/biography/arts/reference（哲学/社科/思想类归 reference）。`+
+    `lang：主要语言 zh 或 en。书名：「${title}」。`+
     `只返回 JSON：{"fic":"fiction或nonfiction","genre":"键名","lang":"zh或en"}`, 200);
   if(!txt) return null;
   try{ const j=JSON.parse(txt.replace(/```json|```/g,'').trim());
@@ -704,6 +817,7 @@ function render(){
   if(route.name==='rewards') return renderRewards(route.pid);
   if(route.name==='shelf') return renderShelf(route.pid);
   if(route.name==='history') return renderHistory(route.pid);
+  if(route.name==='report') return renderReport(route.pid, route.period);
   if(route.name==='parent') return renderParent();
 }
 
@@ -814,6 +928,14 @@ function renderDash(pid){
       ${p.badges.length? p.badges.map(b=>`<span class="badge-chip">${b}</span>`).join('')
         : '<div class="sub">还没有徽章，多打卡就能解锁啦！No badges yet — keep reading!</div>'}
     </div>
+    <div class="card">
+      <div class="section-title">📊 阅读成绩单 Report</div>
+      <div class="sub">把打卡变成成长记录，可生成点评、导出分享。</div>
+      <div style="display:flex;gap:10px;margin-top:10px">
+        <button class="pill-btn" style="flex:1" onclick="go('report',{pid:'${pid}',period:'quarter'})">📅 季度总结</button>
+        <button class="pill-btn" style="flex:1" onclick="go('report',{pid:'${pid}',period:'year'})">🗓️ 年度总结</button>
+      </div>
+    </div>
   `;
 }
 
@@ -864,13 +986,6 @@ function renderFlow(){
       <div class="chips" id="ficChips"></div>
       <label class="fld">🏷️ 体裁 Genre <span class="sub">（点一下可改）</span></label>
       <div class="chips" id="genreChips"></div>
-      ${flow.mode==='serial'?`
-      <label class="fld">📍 今天读到哪了？ Where did you get to today? <span class="sub">（选填）</span></label>
-      <input class="ti" id="progInput" autocomplete="off" placeholder="如：第3章 / 第20-35页" value="${(flow.progress||'').replace(/"/g,'&quot;')}" oninput="flow.progress=this.value">
-      <label class="prow" style="margin-top:10px;cursor:pointer">
-        <input type="checkbox" ${flow.finishedBook?'checked':''} onchange="flow.finishedBook=this.checked" style="width:22px;height:22px">
-        <span style="font-weight:700">🎉 今天把这本书读完啦！ Finished the whole book today</span>
-      </label>`:''}
       <button class="big-btn" onclick="flowNextBook()">下一步 Next →</button>
     `;
   }
@@ -937,6 +1052,18 @@ function renderFlow(){
         </div>`;
       }
     }).join('');
+    if(flow.mode==='serial'){
+      body += `
+      <div class="q-block">
+        <label class="fld">📍 今天读到哪了？ Where did you get to today? <span class="sub">（选填）</span></label>
+        <input class="ti" id="progInput" autocomplete="off" placeholder="如：第3章 / 第20-35页" value="${(flow.progress||'').replace(/"/g,'&quot;')}" oninput="flow.progress=this.value">
+        <label class="prow" style="margin-top:12px;cursor:pointer">
+          <input type="checkbox" ${flow.finishedBook?'checked':''} onchange="flow.finishedBook=this.checked" style="width:22px;height:22px">
+          <span style="font-weight:700">🎉 今天把这本书读完啦！ Finished the whole book today</span>
+        </label>
+      </div>`;
+    }
+    body += `<div id="finishWarn" style="display:none;background:#FFF1E6;border:1px solid var(--sun);color:#9a4a00;border-radius:14px;padding:12px 14px;margin:10px 0;font-weight:600;font-size:14px"></div>`;
     body += `<button class="big-btn" onclick="finishCheckin()">完成打卡！ Finish! 🎉</button>`;
   }
 
@@ -997,7 +1124,6 @@ function continueBook(i){
   flow.continuing=true; flow.langTouched=true; flow.ficTouched=true; flow.genreTouched=true;
   renderFlow();
 }
-function setMinutes(m){ stopTimer(); flow.minutes=m; timerSec=m*60; renderFlow(); }
 function flowNextBook(){
   if(!flow.book){ toast('请先填写书名 📕 Enter a title first'); return; }
   flowStep(1);
@@ -1010,9 +1136,15 @@ function flowNextTime(){
   flowStep(2);
 }
 function buildQuestions(){
-  const p=S.profiles[flow.pid]; const L=flow.lang; const tier=tierOf(p);
+  const p=S.profiles[flow.pid]; const L=flow.lang; let tier=tierOf(p);
   const openN = tier===1?1:2;
-  const bank = (flow.mode==='serial') ? QUESTIONS.serial : QUESTIONS.open;
+  const isNon = flow.fic==='nonfiction';
+  const isSerial = flow.mode==='serial';
+  let bank;
+  if(isNon)  bank = isSerial ? QUESTIONS.nonfic_serial : QUESTIONS.nonfic;
+  else       bank = isSerial ? QUESTIONS.serial : QUESTIONS.open;
+  // 若该题库没有这个 tier（如连载库没有 tier4），回退到最高可用 tier
+  while(tier>1 && !bank[tier]) tier--;
   const opens = pick(bank[tier][L], openN).map(q=>({kind:'open', q}));
   const mc = pick(QUESTIONS.mc[L], 1).map(q=>({kind:'mc', q:q.q, o:q.o}));
   flow.questions=[...mc, ...opens]; flow.answers={};
@@ -1036,7 +1168,7 @@ async function getCheer(i){
   const bub=$('#bub'+i);
   if(bub){ bub.classList.remove('hidden'); bub.textContent='🐾 …'; }
   const p=S.profiles[flow.pid];
-  const age = p.band==='young' ? 7 : 10;
+  const age = p.band==='young' ? 7 : (p.band==='adult' ? 30 : 10);
   let msg = await aiEncourage(flow.book, age, L, flow.questions[i].q, ans); // live AI if available
   if(!msg) msg = pick(CHEERS[L],1)[0];                                      // warm fallback
   flow.cheers[i]=msg;
@@ -1044,20 +1176,24 @@ async function getCheer(i){
 }
 
 /* ---------- timer ---------- */
-let timerSec=0, timerRunning=false, timerInt=null;
-function timerReset(){ stopTimer(); timerSec=0; }            // 每次打卡开始时调用
+let timerSec=0, timerRunning=false, timerInt=null, timerStartTs=0, timerBaseSec=0;
+function timerReset(){ stopTimer(); timerSec=0; timerBaseSec=0; }   // 每次打卡开始时调用
 function toggleTimer(){
   timerRunning?stopTimer():runTimer();
   const btn=$('#timerToggle'); if(btn) btn.textContent=timerRunning?'⏸ 暂停':'▶️ 开始计时';
 }
-function runTimer(){ timerRunning=true; timerInt=setInterval(()=>{ timerSec++; const d=$('#timerDisp'); if(d) d.textContent=String(Math.floor(timerSec/60)).padStart(2,'0')+':'+String(timerSec%60).padStart(2,'0'); },1000); }
-function stopTimer(){ timerRunning=false; clearInterval(timerInt); }
-function resetTimer(){ stopTimer(); timerSec=0; flow.minutes=0; renderFlow(); }
-/* 快捷芯片：只在计时器为 0（没有实际计时）时才覆盖 minutes；已经计时过的，芯片只高亮不覆盖，避免把真实时长抹掉 */
-function setMinutes(m){
-  if(timerSec===0){ flow.minutes=m; renderFlow(); }
-  else { flow.minutes=m; renderFlow(); }  // 用户明确点了芯片，尊重用户选择但提示
+function tickTimer(){
+  if(timerRunning) timerSec = timerBaseSec + Math.floor((Date.now()-timerStartTs)/1000);
+  const d=$('#timerDisp'); if(d) d.textContent=String(Math.floor(timerSec/60)).padStart(2,'0')+':'+String(timerSec%60).padStart(2,'0');
 }
+function runTimer(){ timerRunning=true; timerBaseSec=timerSec; timerStartTs=Date.now(); timerInt=setInterval(tickTimer,1000); }
+function stopTimer(){
+  if(timerRunning){ timerSec = timerBaseSec + Math.floor((Date.now()-timerStartTs)/1000); timerBaseSec=timerSec; }
+  timerRunning=false; clearInterval(timerInt);
+}
+function resetTimer(){ stopTimer(); timerSec=0; timerBaseSec=0; flow.minutes=0; renderFlow(); }
+/* 快捷芯片：点了就用，覆盖当前分钟数 */
+function setMinutes(m){ flow.minutes=m; renderFlow(); }
 
 /* ---------- speech (optional enhancement) ---------- */
 function startSpeech(i,lang){
@@ -1079,21 +1215,33 @@ function startSpeech(i,lang){
    参与：完成打卡 +10，每道问题 +4
    坚持：连击≥3天 +8，≥7天 +15
    读完一本长书：额外 +12 */
+function warnFinish(msg){
+  const el=$('#finishWarn');
+  if(el){ el.textContent=msg; el.style.display='block'; el.scrollIntoView({behavior:'smooth',block:'center'}); }
+  toast(msg);
+}
 function finishCheckin(){
   const p=S.profiles[flow.pid];
   const L=flow.lang;
   const tier=tierOf(S.profiles[flow.pid]);
   const minReq=MIN_CHARS[L][tier];
   const unit=L==='zh'?'字':'词';
+  // 关键：提交前直接从输入框读取最新内容回填，避免键盘听写/输入法没触发 oninput 导致答案漏更新
+  flow.questions.forEach((q,i)=>{
+    if(q.kind==='open'){ const ta=document.getElementById('ans'+i); if(ta && typeof ta.value==='string') flow.answers[i]=ta.value; }
+  });
+  // 同步读取连载进度输入框
+  const pi=document.getElementById('progInput'); if(pi && typeof pi.value==='string') flow.progress=pi.value;
+  const wn=$('#finishWarn'); if(wn) wn.style.display='none';
   const missing = flow.questions.some((q,i)=> q.kind==='open' && !(flow.answers[i]&&flow.answers[i].trim()));
-  if(missing){ toast(L==='zh'?'把"说一说"答完整再完成哦 😊':'Finish the "Tell me" answers first 😊'); return; }
+  if(missing){ warnFinish(L==='zh'?'还有"说一说"没填，请先答完每一题 😊':'Please answer every "Tell me" question first 😊'); return; }
   // 字数校验
   const tooShort = flow.questions.filter((q,i)=>{ if(q.kind!=='open') return false;
     const v=(flow.answers[i]||''); const cur=L==='zh'?v.replace(/\s/g,'').length:v.trim().split(/\s+/).filter(Boolean).length;
     return cur<minReq; });
-  if(tooShort.length){ toast(L==='zh'?`回答还不够哦，每题至少 ${minReq} 个字 ✍️`:`Answers too short — aim for at least ${minReq} words each ✍️`); return; }
+  if(tooShort.length){ warnFinish(L==='zh'?`回答还不够长哦，每道"说一说"至少 ${minReq} 个字 ✍️`:`Each answer needs at least ${minReq} words ✍️`); return; }
   const mcAnswered = flow.questions.some((q,i)=> q.kind==='mc' && flow.answers[i]!==undefined);
-  if(!mcAnswered){ toast(L==='zh'?'选一选还没选 😊':'Pick the multiple-choice answer 😊'); return; }
+  if(!mcAnswered){ warnFinish(L==='zh'?'还有"选一选"没选哦 😊':'Please pick a multiple-choice answer 😊'); return; }
   // ----- compute dimensions using state BEFORE this check-in -----
   const base=10;
   // 时长：达成目标才开始算超出部分，每超 2 分钟 +1，不封顶
@@ -1308,11 +1456,176 @@ function renderHistory(pid){
   `;
 }
 
-/* ---------- PARENT SETTINGS ---------- */
-function openParent(){
-  if(!S.settings.parentPIN) pinPrompt('set');   // 首次：可设置或跳过
-  else pinPrompt('enter');                       // 已设置：需验证
+/* ---------- READING REPORTS (季度/年度成长总结) ---------- */
+function periodRange(period, offset){
+  // offset: 0=当前周期, -1=上一周期...  返回 {start, end, label}
+  offset=offset||0;
+  const now=new Date();
+  if(period==='year'){
+    const y=now.getFullYear()+offset;
+    return { start:new Date(y,0,1).getTime(), end:new Date(y+1,0,1).getTime(), label:`${y} 年度` };
+  }
+  // 季度：把"年*4+季"作为线性序号偏移
+  let qi=Math.floor(now.getMonth()/3) + now.getFullYear()*4 + offset;
+  const y=Math.floor(qi/4); const q=((qi%4)+4)%4;
+  return { start:new Date(y,q*3,1).getTime(), end:new Date(y,q*3+3,1).getTime(), label:`${y} 年 第${q+1}季度` };
 }
+function computeStats(p, period, offset){
+  const {start,end,label}=periodRange(period, offset);
+  const hs=(p.history||[]).filter(h=>h.ts>=start && h.ts<end);
+  const totalMin=hs.reduce((s,h)=>s+(h.minutes||0),0);
+  const zhMin=hs.filter(h=>h.lang==='zh').reduce((s,h)=>s+(h.minutes||0),0);
+  const enMin=hs.filter(h=>h.lang==='en').reduce((s,h)=>s+(h.minutes||0),0);
+  const ficMin=hs.filter(h=>h.fic==='fiction').reduce((s,h)=>s+(h.minutes||0),0);
+  const nonMin=hs.filter(h=>h.fic==='nonfiction').reduce((s,h)=>s+(h.minutes||0),0);
+  const pts=hs.reduce((s,h)=>s+(h.points||0),0);
+  const days=new Set(hs.map(h=>{ const d=new Date(h.ts); return d.getFullYear()+'-'+(d.getMonth()+1)+'-'+d.getDate(); })).size;
+  const genreMin={};
+  hs.forEach(h=>{ const k=h.fic+'/'+h.genre; genreMin[k]=(genreMin[k]||0)+(h.minutes||0); });
+  const booksRead=[...new Set(hs.map(h=>h.book))];
+  const byMonth={};
+  hs.forEach(h=>{ const m=new Date(h.ts).getMonth()+1; byMonth[m]=(byMonth[m]||0)+(h.minutes||0); });
+  const genreCount=Object.keys(genreMin).length;
+  return { label, start, end, count:hs.length, totalMin, zhMin, enMin, ficMin, nonMin, pts, days,
+           genreMin, booksRead, booksCount:booksRead.length, genreCount, byMonth, hs };
+}
+/* 环比变化标签：显示 ↑+X / ↓−X / 持平 */
+function deltaTag(cur, prev, opt){
+  opt=opt||{};
+  const d=cur-prev;
+  if(prev===0 && cur===0) return '';
+  if(d===0) return `<span style="color:var(--ink-soft);font-size:12px;font-weight:700">持平</span>`;
+  const up=d>0;
+  const val = opt.isTime ? fmtMin(Math.abs(d)) : Math.abs(d)+(opt.unit||'');
+  const color = up?'var(--leaf-d)':'#d9534f';
+  const arrow = up?'▲':'▼';
+  return `<span style="color:${color};font-size:12px;font-weight:800">${arrow}${up?'+':'−'}${val}</span>`;
+}
+function fmtMin(m){ if(m>=60){ const h=Math.floor(m/60), r=m%60; return r?`${h}小时${r}分`:`${h}小时`; } return m+'分'; }
+function bar2(a,b,la,lb,ca,cb){
+  const t=Math.max(1,a+b); const pa=Math.round(a/t*100);
+  return `<div style="display:flex;height:26px;border-radius:8px;overflow:hidden;font-size:12px;font-weight:700;color:#fff">
+    <div style="width:${pa}%;background:${ca};display:flex;align-items:center;justify-content:center;min-width:${a?'34px':'0'}">${a?la:''}</div>
+    <div style="width:${100-pa}%;background:${cb};display:flex;align-items:center;justify-content:center;min-width:${b?'34px':'0'}">${b?lb:''}</div>
+  </div>`;
+}
+function renderReport(pid, period){
+  period=period||'quarter';
+  const p=S.profiles[pid];
+  const st=computeStats(p, period);
+  const GENRES_FLAT=[...GENRES.fiction,...GENRES.nonfiction];
+  const prev=computeStats(p, period, -1);  // 上一周期
+  const genreRows=Object.entries(st.genreMin).sort((a,b)=>b[1]-a[1]).slice(0,6).map(([k,v])=>{
+    const [fic,gk]=k.split('/'); const g=GENRES_FLAT.find(x=>x.k===gk)||{zh:gk,emo:'📖'};
+    const pct=Math.round(v/Math.max(1,st.totalMin)*100);
+    const pv=prev.genreMin[k]||0;
+    return `<div style="margin-top:8px">
+      <div style="display:flex;justify-content:space-between;font-size:13px"><span>${g.emo} ${g.zh} ${deltaTag(v,pv,{isTime:true})}</span><span>${fmtMin(v)} · ${pct}%</span></div>
+      <div class="progress" style="margin-top:3px"><i style="width:${pct}%;background:${fic==='fiction'?'var(--sky)':'var(--leaf)'}"></i></div>
+    </div>`;
+  }).join('') || '<div class="sub">本期还没有阅读记录</div>';
+  // 体裁里"新尝试"的（本期有、上期没有）
+  const newGenres=Object.keys(st.genreMin).filter(k=>!prev.genreMin[k]).map(k=>{ const g=GENRES_FLAT.find(x=>x.k===k.split('/')[1]); return g?g.emo+g.zh:k; });
+  const cmpRow=(label,cur,pv,opt)=>`<div style="display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-bottom:1px dashed var(--line)">
+      <span style="font-size:14px">${label}</span>
+      <span style="font-size:14px;font-weight:700">${opt&&opt.isTime?fmtMin(cur):cur}${opt&&opt.unit||''} &nbsp;${deltaTag(cur,pv,opt)}</span>
+    </div>`;
+
+  app.innerHTML=`
+    <div class="topbar">
+      <button class="ghost-btn" onclick="go('dash',{pid:'${pid}'})">← 返回</button>
+      <div class="spacer"></div>
+      <button class="ghost-btn ${period==='quarter'?'':'gray'}" onclick="go('report',{pid:'${pid}',period:'quarter'})">季度</button>
+      <button class="ghost-btn ${period==='year'?'':'gray'}" onclick="go('report',{pid:'${pid}',period:'year'})">年度</button>
+    </div>
+    <div class="card" id="reportCard">
+      <div style="text-align:center">
+        <div style="font-size:46px">${p.emoji}</div>
+        <div class="section-title" style="justify-content:center">${p.name} 的阅读成绩单</div>
+        <div class="sub">${st.label}</div>
+      </div>
+      <div class="stat-row" style="margin-top:14px">
+        <div class="stat"><div class="v">${fmtMin(st.totalMin)}</div><div class="l">总时长 ${deltaTag(st.totalMin,prev.totalMin,{isTime:true})}</div></div>
+        <div class="stat"><div class="v">${st.count}</div><div class="l">打卡 ${deltaTag(st.count,prev.count,{unit:'次'})}</div></div>
+        <div class="stat"><div class="v">${st.days}</div><div class="l">天数 ${deltaTag(st.days,prev.days,{unit:'天'})}</div></div>
+      </div>
+      <div class="stat-row" style="margin-top:8px">
+        <div class="stat"><div class="v">${st.booksCount}</div><div class="l">读过的书 ${deltaTag(st.booksCount,prev.booksCount,{unit:'本'})}</div></div>
+        <div class="stat"><div class="v">${st.genreCount}</div><div class="l">体裁 ${deltaTag(st.genreCount,prev.genreCount,{unit:'种'})}</div></div>
+        <div class="stat"><div class="v">⭐${st.pts}</div><div class="l">积分 ${deltaTag(st.pts,prev.pts,{})}</div></div>
+      </div>
+
+      <div class="section-title" style="margin-top:18px;font-size:15px">📈 与上一周期相比 <span class="sub" style="font-weight:400">（${prev.label}）</span></div>
+      <div style="background:var(--cream);border-radius:12px;padding:6px 14px">
+        ${cmpRow('⏱️ 总阅读时长', st.totalMin, prev.totalMin, {isTime:true})}
+        ${cmpRow('🇨🇳 中文时长', st.zhMin, prev.zhMin, {isTime:true})}
+        ${cmpRow('🇬🇧 英文时长', st.enMin, prev.enMin, {isTime:true})}
+        ${cmpRow('📖 虚构时长', st.ficMin, prev.ficMin, {isTime:true})}
+        ${cmpRow('🔬 非虚构时长', st.nonMin, prev.nonMin, {isTime:true})}
+        ${cmpRow('📅 阅读天数', st.days, prev.days, {unit:'天'})}
+        <div style="padding:7px 0">${newGenres.length?`<span style="font-size:13px">🌱 这一期新尝试了：<b>${newGenres.join('、')}</b>`:`<span style="font-size:13px;color:var(--ink-soft)">这一期没有尝试新体裁，下期试试新类型吧～</span>`}</span></div>
+      </div>
+
+      <div class="section-title" style="margin-top:18px;font-size:15px">🌐 中英文配比</div>
+      ${bar2(st.zhMin, st.enMin, '中文 '+fmtMin(st.zhMin), 'EN '+fmtMin(st.enMin), 'var(--leaf)', 'var(--sky)')}
+
+      <div class="section-title" style="margin-top:16px;font-size:15px">📚 虚构 / 非虚构</div>
+      ${bar2(st.ficMin, st.nonMin, '虚构 '+fmtMin(st.ficMin), '非虚构 '+fmtMin(st.nonMin), '#9b8cff', '#ff9b54')}
+
+      <div class="section-title" style="margin-top:16px;font-size:15px">🏷️ 体裁分布 <span class="sub" style="font-weight:400">（含环比）</span></div>
+      ${genreRows}
+
+      ${st.booksRead.length?`<div class="section-title" style="margin-top:16px;font-size:15px">📖 本期读过</div>
+        <div class="sub" style="line-height:1.9">${st.booksRead.slice(0,20).map(b=>`「${b}」`).join('　')}</div>`:''}
+
+      <div class="section-title" style="margin-top:18px;font-size:15px">💬 成长点评</div>
+      <div id="aiReview" class="sub" style="line-height:1.7;background:var(--cream);border-radius:12px;padding:12px">
+        ${st.count? '点下面的按钮，生成这一阶段的成长点评 →' : '本期还没有阅读记录，先去打卡吧！'}
+      </div>
+      ${st.count?`<button class="big-btn" id="genReviewBtn" onclick="genReview('${pid}','${period}')">✨ 生成成长点评</button>`:''}
+    </div>
+    ${st.count?`<button class="pill-btn" style="width:100%;margin-top:4px" onclick="toast('分享卡片功能马上做好 🖼️')">🖼️ 导出分享卡片（即将上线）</button>`:''}
+  `;
+}
+async function genReview(pid, period){
+  const p=S.profiles[pid];
+  const st=computeStats(p, period);
+  const prev=computeStats(p, period, -1);
+  const box=$('#aiReview'); const btn=$('#genReviewBtn');
+  if(box) box.textContent='正在生成点评… ✨';
+  if(btn){ btn.disabled=true; btn.textContent='生成中…'; }
+  // 准备数据摘要 + 抽样开放题回答
+  const sampleAns=[];
+  st.hs.slice(0,8).forEach(h=>{ (h.answers||[]).forEach(a=>{ if(a.kind==='open'&&a.a&&a.a.length>5) sampleAns.push(`书《${h.book}》问:${a.q} 答:${a.a}`); }); });
+  const isAdult=p.band==='adult';
+  const topGenres=Object.entries(st.genreMin).sort((a,b)=>b[1]-a[1]).slice(0,3).map(([k])=>{ const g=[...GENRES.fiction,...GENRES.nonfiction].find(x=>x.k===k.split('/')[1]); return g?g.zh:k; }).join('、');
+  const hasPrev = prev.count>0;
+  const cmp = hasPrev
+    ? `与上一周期(${prev.label})相比：总时长${st.totalMin-prev.totalMin>=0?'增加':'减少'}${fmtMin(Math.abs(st.totalMin-prev.totalMin))}，`+
+      `中文${st.zhMin-prev.zhMin>=0?'+':'-'}${Math.abs(st.zhMin-prev.zhMin)}分、英文${st.enMin-prev.enMin>=0?'+':'-'}${Math.abs(st.enMin-prev.enMin)}分，`+
+      `非虚构${st.nonMin-prev.nonMin>=0?'+':'-'}${Math.abs(st.nonMin-prev.nonMin)}分，体裁种类${st.genreCount-prev.genreCount>=0?'+':'-'}${Math.abs(st.genreCount-prev.genreCount)}种。`
+    : `这是有记录以来的第一个完整周期，暂无上一周期可比。`;
+  const prompt =
+    `你是一位温暖又专业的阅读导师，为${isAdult?'一位成年读者':'一个孩子'}（${p.name}）写一段${st.label}的阅读成长点评。`+
+    `本期数据：阅读${st.count}次、共${fmtMin(st.totalMin)}、阅读${st.days}天、中文${fmtMin(st.zhMin)}/英文${fmtMin(st.enMin)}、`+
+    `虚构${fmtMin(st.ficMin)}/非虚构${fmtMin(st.nonMin)}、涉及体裁${st.genreCount}种(主要:${topGenres})、读过${st.booksRead.length}本书。`+
+    cmp+
+    (sampleAns.length?`阅读回答样本：${sampleAns.slice(0,6).join('；')}。`:'')+
+    `请写3小段，共约${isAdult?'220':'160'}字：①结合环比变化，肯定亮点与进步（具体点出哪些方面提升了，${isAdult?'客观真诚':'热情鼓励'}）；②基于数据指出可以加强的方向（如某语言、虚构/非虚构偏少、或体裁可更广等），${isAdult?'平实中肯':'温和正面、像朋友建议'}；③一句温暖的寄语。${isAdult?'语气成熟平等。':'语气适合给孩子看，亲切。'}直接输出点评正文，不要标题。`;
+  let msg=await callClaude(prompt, 600);
+  if(!msg){
+    const dTotal=st.totalMin-prev.totalMin;
+    msg=`这个${st.label.includes('季')?'季度':'年度'}，${p.name}一共阅读了 ${fmtMin(st.totalMin)}，坚持了 ${st.days} 天。`+
+        (hasPrev?(dTotal>0?`比上一周期多读了 ${fmtMin(dTotal)}，进步很明显！`:dTotal<0?`比上一周期少了一些，下一程再加把劲～`:`和上一周期持平，保持得很稳。`):`这是一个很棒的开始！`)+
+        (st.enMin<st.zhMin/2?`英文阅读可以再多一点，和中文更均衡。`:st.zhMin<st.enMin/2?`中文阅读可以再加强一些。`:`中英文都有兼顾，做得很好。`)+
+        (st.nonMin< st.ficMin/3?`也可以多读一点非虚构（科普、历史），让阅读更全面。`:'')+`继续保持，下一阶段会更精彩！`;
+  }
+  if(box) box.textContent=msg;
+  if(btn){ btn.disabled=false; btn.textContent='✨ 重新生成'; }
+  p.lastReview=p.lastReview||{}; p.lastReview[period+'_'+st.label]=msg; save();
+}
+
+
 function pinPrompt(mode){
   const title = mode==='set' ? '🔒 设置家长密码 Set PIN' : '🔒 家长密码 Parent PIN';
   const desc  = mode==='set' ? '设置一个 4 位数字密码，以后进入家长设置需要它。' : '请输入家长密码进入设置。';
@@ -1472,6 +1785,7 @@ function confetti(){
 }
 
 /* ---------- boot ---------- */
+document.addEventListener('visibilitychange',()=>{ if(!document.hidden && timerRunning) tickTimer(); });
 render();
 syncFromCloud();  // 异步拉云端，完成后自动刷新
 </script>
