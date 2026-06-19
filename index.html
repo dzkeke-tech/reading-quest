@@ -301,6 +301,14 @@ function migrate(s){
     if(p.booksDone==null) p.booksDone=0;
   });
   if(!s.settings) s.settings={requireParentConfirm:true};
+  if(!Array.isArray(s.redemptions)) s.redemptions=[];
+  if(!Array.isArray(s.rewards) || !s.rewards.length){
+    const d=defaultState();
+    if(!Array.isArray(s.rewards) || !s.rewards.length) s.rewards=d.rewards;
+  }
+  if(!Array.isArray(s.order) || !s.order.length){
+    s.order = Object.keys(s.profiles||{});
+  }
   return s;
 }
 /* save() defined in storage layer above */
@@ -694,7 +702,7 @@ function hasCJK(s){ return /[\u3400-\u9fff]/.test(s); }
 
 /* ---------- AI layer (auto-active inside Claude.ai; via your Worker when self-hosted) ---------- */
 /* ▼▼▼ 把你的 Cloudflare Worker 地址粘到这里，自托管(GitHub Pages)即可启用真·AI ▼▼▼ */
-const APP_VERSION = "2026-06-18-v13";  // 版本标记：控制台输入 APP_VERSION 可核对线上版本
+const APP_VERSION = "2026-06-18-v13b";  // 版本标记：控制台输入 APP_VERSION 可核对线上版本
 window.APP_VERSION = APP_VERSION;
 const WORKER_URL = "https://reading-quest-ai.dzkeke.workers.dev";
 /* 留空时：在 Claude.ai 里运行会自动直连 AI；自托管则使用内置鼓励语兜底 */
@@ -1508,17 +1516,26 @@ function redeem(pid,rid){
   if(S.settings.requireParentConfirm){ parentGate(()=>doIt()); } else doIt();
 }
 // lightweight parent gate: a small arithmetic question kids can't easily pass impulsively
+let _gateCallback=null, _gateAnswer=0;
 function parentGate(onOk){
+  _gateCallback=onOk;
   const a=Math.floor(Math.random()*8)+6, b=Math.floor(Math.random()*8)+6;
-  const o=document.createElement('div'); o.className='overlay'; o.style.alignItems='center';
+  _gateAnswer=a+b;
+  const o=document.createElement('div'); o.className='overlay'; o.style.alignItems='center'; o.id='gateOverlay';
   o.innerHTML=`<div class="sheet" style="border-radius:24px;max-width:380px;margin:0 16px">
     <div class="section-title">🔒 家长确认 Parent check</div>
     <div class="sub">请家长输入答案 / Parent, solve: <b>${a} + ${b} = ?</b></div>
     <input class="ti" id="gateIn" inputmode="numeric" style="margin-top:12px" placeholder="答案">
-    <div class="row-btns"><button class="pill-btn" onclick="this.closest('.overlay').remove()">取消</button>
-    <button class="pill-btn" style="background:var(--leaf);color:#fff;border-color:var(--leaf)" onclick="if(+document.getElementById('gateIn').value===${a+b}){this.closest('.overlay').remove();(${onOk.toString()})()}else{document.getElementById('gateIn').value='';document.getElementById('gateIn').placeholder='再试一次'}">确认</button></div>
+    <div class="row-btns"><button class="pill-btn" onclick="closeGate()">取消</button>
+    <button class="pill-btn" style="background:var(--leaf);color:#fff;border-color:var(--leaf)" onclick="submitGate()">确认</button></div>
   </div>`;
   document.body.appendChild(o);
+}
+function closeGate(){ const o=$('#gateOverlay'); if(o) o.remove(); _gateCallback=null; }
+function submitGate(){
+  const v=+(document.getElementById('gateIn').value);
+  if(v===_gateAnswer){ const cb=_gateCallback; closeGate(); if(cb) cb(); }
+  else { const i=document.getElementById('gateIn'); i.value=''; i.placeholder='再试一次'; }
 }
 
 /* ---------- HISTORY ---------- */
