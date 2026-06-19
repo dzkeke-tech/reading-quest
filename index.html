@@ -338,6 +338,7 @@ function companionsUnlocked(p){ return Math.min(levelOf(p), COMPANIONS.length); 
 /* ---------- question bank (bilingual, tiered) ---------- */
 /* 字数要求：tier1 中文30字/英文20词，tier2 中文50字/英文35词，tier3 中文80字/英文50词 */
 const MIN_CHARS = { zh:{1:30,2:50,3:80,4:120}, en:{1:20,2:35,3:50,4:80} };  // zh=字数, en=词数
+const NOTE_MIN = { 1:60, 2:100, 3:150, 4:200 };  // 读书笔记最低字数（随难度档递增；英文按词数同值的一半参考但仍用字符宽松计）
 const QUESTIONS = {
   mc: {
     zh:[
@@ -693,7 +694,7 @@ function hasCJK(s){ return /[\u3400-\u9fff]/.test(s); }
 
 /* ---------- AI layer (auto-active inside Claude.ai; via your Worker when self-hosted) ---------- */
 /* ▼▼▼ 把你的 Cloudflare Worker 地址粘到这里，自托管(GitHub Pages)即可启用真·AI ▼▼▼ */
-const APP_VERSION = "2026-06-18-v11c";  // 版本标记：控制台输入 APP_VERSION 可核对线上版本
+const APP_VERSION = "2026-06-18-v13";  // 版本标记：控制台输入 APP_VERSION 可核对线上版本
 window.APP_VERSION = APP_VERSION;
 const WORKER_URL = "https://reading-quest-ai.dzkeke.workers.dev";
 /* 留空时：在 Claude.ai 里运行会自动直连 AI；自托管则使用内置鼓励语兜底 */
@@ -944,9 +945,9 @@ let flow = null;
 function startCheckin(pid, prefill){
   timerReset();   // ← 每次新打卡强制清零计时器
   flow = { pid, step:0, book:'', lang:'zh', fic:'fiction', genre:'life', lex:null,
-           mode:'whole', progress:'', finishedBook:false, continuing:false,
+           mode:'whole', progress:'', pages:'', finishedBook:false, continuing:false,
            langTouched:false, ficTouched:false, genreTouched:false,
-           minutes:0, questions:[], answers:{}, cheers:{} };
+           note:'', minutes:0, questions:[], answers:{}, cheers:{} };
   if(prefill){ // 从书架或"在读"点进来：书目已知
     flow.book=prefill.t; flow.lang=prefill.lang; flow.fic=prefill.fic; flow.genre=prefill.genre;
     if(prefill.lex!=null) flow.lex=prefill.lex;
@@ -1052,15 +1053,49 @@ function renderFlow(){
         </div>`;
       }
     }).join('');
+    // 顶部说明：答题与笔记至少完成一样
+    {
+      const tierN=tierOf(S.profiles[flow.pid]); const noteMin=NOTE_MIN[tierN];
+      const noteLen=(flow.note||'').replace(/\s/g,'').length;
+      const noteMet=noteLen>=noteMin;
+      body = `<div class="q-block" style="background:var(--cream);border:none">
+        <div style="font-weight:700">✍️ 答题 或 📓 写读书笔记，至少完成一样即可（也可都做）</div>
+        <div class="sub" style="margin-top:4px">答题适合引导思考；笔记适合自由表达。两者都做会有更多积分～</div>
+      </div>` + body;
+      // 读书笔记区
+      body += `<div class="q-block">
+        <span class="q-tag open" style="background:#ffe9c7;color:#9a4a00">📓 读书笔记（可选）</span>
+        <div class="q-text">写写今天读到的内容、感想、收获或好词好句吧。</div>
+        <textarea class="ti" id="noteInput" rows="5"
+          placeholder="自由发挥～至少 ${noteMin} 字（也可以不写，改成答题）"
+          oninput="flow.note=this.value; updateNoteCount()">${(flow.note||'')}</textarea>
+        <div id="noteCnt" style="font-size:13px;margin-top:4px;color:${noteMet?'var(--leaf-d)':'var(--ink-soft)'}">
+          ${flow.note? (noteMet?`✅ ${noteLen}字，写得真好！`:`已写 ${noteLen}/${noteMin} 字`) : `若选择写笔记，至少 ${noteMin} 字`}
+        </div>
+        <div class="hint">💡 写满 ${noteMin} 字的笔记可获得 +5 积分</div>
+      </div>`;
+    }
+    if(flow.mode==='whole'){
+      body += `
+      <div class="q-block">
+        <label class="fld">📖 这本书一共多少页？ Total pages of this book?</label>
+        <input class="ti" id="pagesInput" inputmode="numeric" autocomplete="off" placeholder="如：120" value="${flow.pages||''}" oninput="flow.pages=this.value.replace(/[^0-9]/g,'')">
+        <div class="sub" style="margin-top:4px">读完一本书会按页数获得奖励：≤50页+10，50-100+25，100-200+60，200+页+100 ⭐</div>
+      </div>`;
+    }
     if(flow.mode==='serial'){
       body += `
       <div class="q-block">
-        <label class="fld">📍 今天读到哪了？ Where did you get to today? <span class="sub">（选填）</span></label>
-        <input class="ti" id="progInput" autocomplete="off" placeholder="如：第3章 / 第20-35页" value="${(flow.progress||'').replace(/"/g,'&quot;')}" oninput="flow.progress=this.value">
+        <label class="fld">📍 今天读到第几页？ Page reached today? <span class="sub">（选填）</span></label>
+        <input class="ti" id="progInput" autocomplete="off" placeholder="如：第3章 / 读到第35页" value="${(flow.progress||'').replace(/"/g,'&quot;')}" oninput="flow.progress=this.value">
         <label class="prow" style="margin-top:12px;cursor:pointer">
-          <input type="checkbox" ${flow.finishedBook?'checked':''} onchange="flow.finishedBook=this.checked" style="width:22px;height:22px">
+          <input type="checkbox" ${flow.finishedBook?'checked':''} onchange="flow.finishedBook=this.checked; renderFlow()" style="width:22px;height:22px">
           <span style="font-weight:700">🎉 今天把这本书读完啦！ Finished the whole book today</span>
         </label>
+        ${flow.finishedBook?`
+        <label class="fld" style="margin-top:10px">📖 这本书一共多少页？ Total pages?</label>
+        <input class="ti" id="pagesInput" inputmode="numeric" autocomplete="off" placeholder="如：240" value="${flow.pages||''}" oninput="flow.pages=this.value.replace(/[^0-9]/g,'')">
+        <div class="sub" style="margin-top:4px">按总页数奖励：≤50+10，50-100+25，100-200+60，200+页+100 ⭐</div>`:''}
       </div>`;
     }
     body += `<div id="finishWarn" style="display:none;background:#FFF1E6;border:1px solid var(--sun);color:#9a4a00;border-radius:14px;padding:12px 14px;margin:10px 0;font-weight:600;font-size:14px"></div>`;
@@ -1161,6 +1196,14 @@ function updateCount(i){
   el.style.color=cur>=minReq?'var(--leaf-d)':'var(--sun-d)';
   el.textContent=cur>=minReq?`✅ ${cur}${unit}，很棒！`:`还差 ${minReq-cur}${unit}（目标 ${minReq}${unit}）`;
 }
+function updateNoteCount(){
+  const tier=tierOf(S.profiles[flow.pid]); const noteMin=NOTE_MIN[tier];
+  const len=(flow.note||'').replace(/\s/g,'').length;
+  const el=$('#noteCnt'); if(!el) return;
+  const met=len>=noteMin;
+  el.style.color = met?'var(--leaf-d)':'var(--ink-soft)';
+  el.textContent = flow.note? (met?`✅ ${len}字，写得真好！`:`已写 ${len}/${noteMin} 字`) : `若选择写笔记，至少 ${noteMin} 字`;
+}
 async function getCheer(i){
   const ans=(flow.answers[i]||'').trim();
   const L=flow.lang;
@@ -1212,9 +1255,9 @@ function startSpeech(i,lang){
    合适难度：刚刚好/挑战自己 +8，偏简单 +2，难度未知 +4
    广度：本次与上次类型(虚构/非虚构或体裁)不同 +5
    双语：当天中英文都读了 +5
-   参与：完成打卡 +10，每道问题 +4
+   参与：完成打卡 +3，每道问题 +3
    坚持：连击≥3天 +8，≥7天 +15
-   读完一本长书：额外 +12 */
+   读完一本书：按总页数 ≤50+10 / 50-100+25 / 100-200+60 / 200+ +100 */
 function warnFinish(msg){
   const el=$('#finishWarn');
   if(el){ el.textContent=msg; el.style.display='block'; el.scrollIntoView({behavior:'smooth',block:'center'}); }
@@ -1232,24 +1275,54 @@ function finishCheckin(){
   });
   // 同步读取连载进度输入框
   const pi=document.getElementById('progInput'); if(pi && typeof pi.value==='string') flow.progress=pi.value;
+  // 同步读取页数输入框
+  const pg=document.getElementById('pagesInput'); if(pg && typeof pg.value==='string') flow.pages=pg.value.replace(/[^0-9]/g,'');
+  // 同步读取读书笔记
+  const nt=document.getElementById('noteInput'); if(nt && typeof nt.value==='string') flow.note=nt.value;
   const wn=$('#finishWarn'); if(wn) wn.style.display='none';
-  const missing = flow.questions.some((q,i)=> q.kind==='open' && !(flow.answers[i]&&flow.answers[i].trim()));
-  if(missing){ warnFinish(L==='zh'?'还有"说一说"没填，请先答完每一题 😊':'Please answer every "Tell me" question first 😊'); return; }
-  // 字数校验
-  const tooShort = flow.questions.filter((q,i)=>{ if(q.kind!=='open') return false;
+
+  // 笔记是否达标
+  const noteMin=NOTE_MIN[tier];
+  const noteLen=(flow.note||'').replace(/\s/g,'').length;
+  const noteDone = noteLen>=noteMin;
+  const noteStarted = (flow.note||'').trim().length>0;
+
+  // 答题是否全部完成且达标
+  const openQs=flow.questions.filter(q=>q.kind==='open');
+  const answeredAll = openQs.every((q)=>{ const i=flow.questions.indexOf(q); return flow.answers[i]&&flow.answers[i].trim(); });
+  const answersLongEnough = openQs.every((q)=>{ const i=flow.questions.indexOf(q);
     const v=(flow.answers[i]||''); const cur=L==='zh'?v.replace(/\s/g,'').length:v.trim().split(/\s+/).filter(Boolean).length;
-    return cur<minReq; });
-  if(tooShort.length){ warnFinish(L==='zh'?`回答还不够长哦，每道"说一说"至少 ${minReq} 个字 ✍️`:`Each answer needs at least ${minReq} words ✍️`); return; }
-  const mcAnswered = flow.questions.some((q,i)=> q.kind==='mc' && flow.answers[i]!==undefined);
-  if(!mcAnswered){ warnFinish(L==='zh'?'还有"选一选"没选哦 😊':'Please pick a multiple-choice answer 😊'); return; }
+    return cur>=minReq; });
+  const qaDone = answeredAll && answersLongEnough;
+
+  // 规则：答题 或 笔记，至少完成一样
+  if(!qaDone && !noteDone){
+    if(noteStarted && !noteDone){
+      warnFinish(L==='zh'?`读书笔记再写长一点哦，至少 ${noteMin} 字（或把上面的题答完）📝`:`Note needs at least ${noteMin} characters (or finish the questions) 📝`); return;
+    }
+    if(!answeredAll){
+      warnFinish(L==='zh'?`答完上面的题，或者写一段至少 ${noteMin} 字的读书笔记，二选一即可 😊`:`Answer the questions, or write a ${noteMin}-char note — either one 😊`); return;
+    }
+    warnFinish(L==='zh'?`回答还不够长哦，每道至少 ${minReq} 字（或改写 ${noteMin} 字笔记）✍️`:`Answers too short — ${minReq}+ each, or write a note ✍️`); return;
+  }
+  // 选择题：只要做了答题就要求选；纯笔记可跳过选择题
+  if(qaDone){
+    const mcAnswered = flow.questions.some((q,i)=> q.kind==='mc' && flow.answers[i]!==undefined);
+    if(!mcAnswered){ warnFinish(L==='zh'?'还有"选一选"没选哦 😊':'Please pick a multiple-choice answer 😊'); return; }
+  }
+  // 读完判定时需要页数（完整模式 或 连载勾了读完）
+  const _finished = (flow.mode==='whole') || (flow.mode==='serial' && flow.finishedBook);
+  if(_finished && !(parseInt(flow.pages)>0)){
+    warnFinish(L==='zh'?'请填一下这本书一共多少页 📖（用于读完奖励）':'Please enter the total page count 📖'); return;
+  }
   // ----- compute dimensions using state BEFORE this check-in -----
-  const base=10;
+  const base=3;
   // 时长：达成目标才开始算超出部分，每超 2 分钟 +1，不封顶
   const goal=timeGoal(p,L); const prevMin=todayMinutes(p,L); const newMin=prevMin+flow.minutes;
   const overMin = Math.max(0, newMin - goal);          // 超出目标的分钟数
   const timeBonus = Math.floor(overMin / 2);
   // 目标达成（该语言）
-  const goalBonus = (prevMin<goal && newMin>=goal) ? 8 : 0;
+  const goalBonus = (prevMin<goal && newMin>=goal) ? 5 : 0;
   // 合适难度（仅英文且已知 Lexile 可判断）
   const m = (L==='en' && flow.lex!=null) ? lexMatch(p, flow.lex) : null;
   let diffBonus, diffLabel;
@@ -1261,8 +1334,14 @@ function finishCheckin(){
   // 双语（今天已读另一种语言）
   const other=L==='zh'?'en':'zh';
   const biBonus = (todayMinutes(p,other)>0) ? 5 : 0;
-  // 参与
-  const qBonus=flow.questions.length*4;
+  // 参与：每道"实际作答"的开放题 +3（只写笔记没答题则不计）
+  const answeredOpenCount = flow.questions.filter((q,i)=> q.kind==='open' && flow.answers[i] && flow.answers[i].trim()).length;
+  const answeredMcCount = flow.questions.filter((q,i)=> q.kind==='mc' && flow.answers[i]!==undefined).length;
+  const qBonus=(answeredOpenCount+answeredMcCount)*3;
+  // 读书笔记：写满字数 +5
+  const noteMinReq=NOTE_MIN[tier];
+  const noteCharLen=(flow.note||'').replace(/\s/g,'').length;
+  const noteBonus = (noteCharLen>=noteMinReq) ? 5 : 0;
   // 坚持
   const t=todayStr();
   let newStreak;
@@ -1270,10 +1349,18 @@ function finishCheckin(){
   else if(p.lastDate && dayDiff(p.lastDate,t)===1) newStreak=p.streak+1;
   else newStreak=1;
   const streakBonus = newStreak>=7?15 : newStreak>=3?8 : 0;
-  // 读完一本长书
-  const finishBonus = (flow.mode==='serial' && flow.finishedBook) ? 12 : 0;
+  // 读完一本书：完整模式视为读完；连载模式需勾"读完了"。按全书总页数分档给分
+  const isFinished = (flow.mode==='whole') || (flow.mode==='serial' && flow.finishedBook);
+  const pages = parseInt(flow.pages)||0;
+  let finishBonus=0;
+  if(isFinished && pages>0){
+    if(pages<=50) finishBonus=10;
+    else if(pages<=100) finishBonus=25;
+    else if(pages<=200) finishBonus=60;
+    else finishBonus=100;
+  }
 
-  const total=base+timeBonus+goalBonus+diffBonus+breadthBonus+biBonus+qBonus+streakBonus+finishBonus;
+  const total=base+timeBonus+goalBonus+diffBonus+breadthBonus+biBonus+qBonus+noteBonus+streakBonus+finishBonus;
 
   // ----- apply -----
   const before={lv:levelOf(p)};
@@ -1282,7 +1369,7 @@ function finishCheckin(){
   p.streak=newStreak; p.lastDate=t;
 
   const answers=flow.questions.map((q,i)=>({q:q.q, kind:q.kind, a: q.kind==='mc'? (q.o[flow.answers[i]]) : flow.answers[i], cheer: flow.cheers[i]||''}));
-  p.history.unshift({ ts:Date.now(), book:flow.book, lang:L, fic:flow.fic, genre:flow.genre, type:genreLabel(flow.fic,flow.genre,L), minutes:flow.minutes, mode:flow.mode, progress:flow.progress||'', points:total, answers });
+  p.history.unshift({ ts:Date.now(), book:flow.book, lang:L, fic:flow.fic, genre:flow.genre, type:genreLabel(flow.fic,flow.genre,L), minutes:flow.minutes, mode:flow.mode, progress:flow.progress||'', pages:parseInt(flow.pages)||0, finished:isFinished, note:(flow.note||'').trim(), points:total, answers });
 
   // ----- currently-reading tracking (serial) -----
   if(!Array.isArray(p.reading)) p.reading=[];
@@ -1317,7 +1404,7 @@ function finishCheckin(){
   if(leveledUp && after.lv<=COMPANIONS.length) newCompanion=COMPANIONS[after.lv-1];
 
   save();
-  showResult(flow.pid, {base,timeBonus,goalBonus,diffBonus,diffLabel,breadthBonus,biBonus,qBonus,streakBonus,finishBonus,total,newStreak,leveledUp,after,newCompanion,newBadges});
+  showResult(flow.pid, {base,timeBonus,goalBonus,diffBonus,diffLabel,breadthBonus,biBonus,qBonus,noteBonus,streakBonus,finishBonus,total,newStreak,leveledUp,after,newCompanion,newBadges});
 }
 
 function showResult(pid, r){
@@ -1334,7 +1421,8 @@ function showResult(pid, r){
       <div><span>📈 ${r.diffLabel} Difficulty</span><span>+${r.diffBonus}</span></div>
       ${r.breadthBonus?`<div><span>🧭 换个类型 Variety</span><span>+${r.breadthBonus}</span></div>`:''}
       ${r.biBonus?`<div><span>🌏 中英文都读了 Bilingual</span><span>+${r.biBonus}</span></div>`:''}
-      <div><span>💬 回答问题 Questions</span><span>+${r.qBonus}</span></div>
+      ${r.qBonus?`<div><span>💬 回答问题 Questions</span><span>+${r.qBonus}</span></div>`:''}
+      ${r.noteBonus?`<div><span>📓 读书笔记 Reading note</span><span>+${r.noteBonus}</span></div>`:''}
       ${r.streakBonus?`<div><span>🔥 连击奖励 Streak</span><span>+${r.streakBonus}</span></div>`:''}
       ${r.finishBonus?`<div><span>🏁 读完一本书 Finished a book</span><span>+${r.finishBonus}</span></div>`:''}
       <div><span>合计 Total</span><span>+${r.total}</span></div>
@@ -1487,8 +1575,22 @@ function computeStats(p, period, offset){
   const byMonth={};
   hs.forEach(h=>{ const m=new Date(h.ts).getMonth()+1; byMonth[m]=(byMonth[m]||0)+(h.minutes||0); });
   const genreCount=Object.keys(genreMin).length;
+  // 按书聚合：同一本书的多次打卡合并
+  const byBook={};
+  hs.forEach(h=>{
+    const key=h.book+'|'+h.lang;
+    if(!byBook[key]) byBook[key]={ book:h.book, lang:h.lang, fic:h.fic, genre:h.genre, minutes:0, count:0, points:0, notes:[], answers:[], finished:false, pages:0, lastTs:0 };
+    const b=byBook[key];
+    b.minutes+=h.minutes||0; b.count+=1; b.points+=h.points||0;
+    if(h.finished) b.finished=true;
+    if(h.pages) b.pages=Math.max(b.pages, h.pages);
+    if(h.note) b.notes.push(h.note);
+    (h.answers||[]).forEach(a=>{ if(a.kind==='open'&&a.a) b.answers.push({q:a.q,a:a.a}); });
+    if(h.ts>b.lastTs) b.lastTs=h.ts;
+  });
+  const books=Object.values(byBook).sort((a,b)=>b.minutes-a.minutes);
   return { label, start, end, count:hs.length, totalMin, zhMin, enMin, ficMin, nonMin, pts, days,
-           genreMin, booksRead, booksCount:booksRead.length, genreCount, byMonth, hs };
+           genreMin, booksRead, booksCount:booksRead.length, genreCount, byMonth, books, hs };
 }
 /* 环比变化标签：显示 ↑+X / ↓−X / 持平 */
 function deltaTag(cur, prev, opt){
@@ -1576,8 +1678,19 @@ function renderReport(pid, period){
       <div class="section-title" style="margin-top:16px;font-size:15px">🏷️ 体裁分布 <span class="sub" style="font-weight:400">（含环比）</span></div>
       ${genreRows}
 
-      ${st.booksRead.length?`<div class="section-title" style="margin-top:16px;font-size:15px">📖 本期读过</div>
-        <div class="sub" style="line-height:1.9">${st.booksRead.slice(0,20).map(b=>`「${b}」`).join('　')}</div>`:''}
+      ${st.books&&st.books.length?`<div class="section-title" style="margin-top:16px;font-size:15px">📚 每本书的足迹</div>
+        <div class="sub" style="margin-bottom:6px">同一本书的多次打卡已合并统计</div>
+        ${st.books.slice(0,30).map(b=>{
+          const g=[...GENRES.fiction,...GENRES.nonfiction].find(x=>x.k===b.genre)||{zh:b.genre,emo:'📖'};
+          return `<div style="background:var(--cream);border-radius:12px;padding:10px 12px;margin-top:8px">
+            <div style="display:flex;justify-content:space-between;align-items:center">
+              <span style="font-weight:700">${b.finished?'✅':'📖'} 「${b.book}」</span>
+              <span style="font-size:12px;color:var(--ink-soft)">${b.lang==='zh'?'中文':'EN'} · ${g.emo}${g.zh}</span>
+            </div>
+            <div style="font-size:13px;margin-top:4px">⏱️ ${fmtMin(b.minutes)} · 📌 打卡${b.count}次 · ⭐${b.points}${b.finished&&b.pages?` · 📖${b.pages}页`:''}${b.notes.length?` · 📓笔记${b.notes.length}则`:''}</div>
+            ${b.notes.length?`<details style="margin-top:6px"><summary style="font-size:13px;cursor:pointer;color:var(--sky-d)">查看读书笔记</summary><div class="sub" style="white-space:pre-wrap;margin-top:4px">${b.notes.map(n=>'• '+n).join('\n')}</div></details>`:''}
+          </div>`;
+        }).join('')}`:''}
 
       <div class="section-title" style="margin-top:18px;font-size:15px">💬 成长点评</div>
       <div id="aiReview" class="sub" style="line-height:1.7;background:var(--cream);border-radius:12px;padding:12px">
@@ -1597,7 +1710,7 @@ async function genReview(pid, period){
   if(btn){ btn.disabled=true; btn.textContent='生成中…'; }
   // 准备数据摘要 + 抽样开放题回答
   const sampleAns=[];
-  st.hs.slice(0,8).forEach(h=>{ (h.answers||[]).forEach(a=>{ if(a.kind==='open'&&a.a&&a.a.length>5) sampleAns.push(`书《${h.book}》问:${a.q} 答:${a.a}`); }); });
+  st.hs.slice(0,8).forEach(h=>{ (h.answers||[]).forEach(a=>{ if(a.kind==='open'&&a.a&&a.a.length>5) sampleAns.push(`书《${h.book}》问:${a.q} 答:${a.a}`); }); if(h.note&&h.note.length>5) sampleAns.push(`书《${h.book}》读书笔记:${h.note}`); });
   const isAdult=p.band==='adult';
   const topGenres=Object.entries(st.genreMin).sort((a,b)=>b[1]-a[1]).slice(0,3).map(([k])=>{ const g=[...GENRES.fiction,...GENRES.nonfiction].find(x=>x.k===k.split('/')[1]); return g?g.zh:k; }).join('、');
   const hasPrev = prev.count>0;
@@ -1691,16 +1804,17 @@ function renderParent(){
       <div class="section-title">📐 积分规则 How points are earned</div>
       <div class="sub">每次打卡的积分按下面这些维度累加，奖励"读得久、难度合适、类型广、中英文兼顾"：</div>
       <div class="breakdown" style="margin-top:10px">
-        <div><span>📖 完成打卡 每次</span><span>+10</span></div>
+        <div><span>📖 完成打卡 每次</span><span>+3</span></div>
         <div><span>⏱️ 时长：达标后超出部分每 2 分钟 +1（不封顶）</span><span>+1/2min</span></div>
-        <div><span>🎯 首次达成当日语言目标</span><span>+8</span></div>
+        <div><span>🎯 首次达成当日语言目标</span><span>+5</span></div>
         <div><span>📈 难度刚刚好 / 挑战自己</span><span>+8</span></div>
         <div><span>📈 偏简单</span><span>+2</span></div>
         <div><span>🧭 广度：和上次不同类型(虚构↔非虚构/换体裁)</span><span>+5</span></div>
         <div><span>🌏 双语：当天中英文都读了</span><span>+5</span></div>
-        <div><span>💬 每回答一个问题</span><span>+4</span></div>
+        <div><span>💬 每回答一个问题</span><span>+3</span></div>
+        <div><span>📓 写满字数的读书笔记（60/100/150/200字按难度）</span><span>+5</span></div>
         <div><span>🔥 连击：≥3天 +8，≥7天 +15</span><span>+15</span></div>
-        <div><span>🏁 读完一本长书</span><span>+12</span></div>
+        <div><span>🏁 读完一本书（按总页数）：≤50页 +10 / 50-100 +25 / 100-200 +60 / 200+ +100</span><span>+10~100</span></div>
       </div>
       <div class="sub" style="margin-top:10px">说明：难度"合适"鼓励的是<b>适合提高</b>的区间，不是越难越好（英文用 Charles 的 Lexile 区间判断；中文暂按"认真阅读"计 +4）。孩子可在"🎁 奖励商店"用累计积分兑换你设定的奖励。</div>
     </div>
