@@ -710,7 +710,7 @@ function hasCJK(s){ return /[\u3400-\u9fff]/.test(s); }
 
 /* ---------- AI layer (auto-active inside Claude.ai; via your Worker when self-hosted) ---------- */
 /* ▼▼▼ 把你的 Cloudflare Worker 地址粘到这里，自托管(GitHub Pages)即可启用真·AI ▼▼▼ */
-const APP_VERSION = "2026-06-18-v13c";  // 版本标记：控制台输入 APP_VERSION 可核对线上版本
+const APP_VERSION = "2026-06-18-v13d";  // 版本标记：控制台输入 APP_VERSION 可核对线上版本
 window.APP_VERSION = APP_VERSION;
 const WORKER_URL = "https://reading-quest-ai.dzkeke.workers.dev";
 /* 留空时：在 Claude.ai 里运行会自动直连 AI；自托管则使用内置鼓励语兜底 */
@@ -1564,7 +1564,8 @@ function renderHistory(pid){
         return `<div class="hist-item">
           <div class="hist-top"><span>${ds} · ${h.lang==='zh'?'中文':'EN'}${h.type?' · '+h.type:''}${h.mode==='serial'?' · 📚连载'+(h.progress?'('+h.progress+')':''):''}</span><span>⏱️${h.minutes}分 · +${h.points}⭐</span></div>
           <div class="hist-book">📖 ${h.book}</div>
-          ${h.answers.map(a=>`<div class="hist-ans"><b>${a.q}</b><br>${a.a||'—'}${a.cheer?`<br><span style="color:var(--leaf-d)">🐾 ${a.cheer}</span>`:''}</div>`).join('')}
+          ${(h.answers||[]).map(a=>`<div class="hist-ans"><b>${a.q}</b><br>${a.a||'—'}${a.cheer?`<br><span style="color:var(--leaf-d)">🐾 ${a.cheer}</span>`:''}</div>`).join('')}
+          ${h.note?`<div class="hist-ans" style="background:#FFF6E9;border-left:3px solid var(--sun)"><b>📓 读书笔记</b><br><span style="white-space:pre-wrap">${h.note}</span></div>`:''}
         </div>`; }).join('')
       : '<div class="sub" style="margin-top:10px">还没有记录。开始第一次打卡吧！</div>'}
     </div>
