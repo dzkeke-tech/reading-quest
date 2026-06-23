@@ -302,6 +302,7 @@ function migrate(s){
   });
   if(!s.settings) s.settings={requireParentConfirm:true};
   if(!Array.isArray(s.redemptions)) s.redemptions=[];
+  Object.values(s.profiles||{}).forEach(p=>{ if(!Array.isArray(p.adjustments)) p.adjustments=[]; });
   // 补 earned（累计赚取，等级用）：老数据 = 当前余额 + 已兑换花掉的总额
   Object.values(s.profiles||{}).forEach(p=>{
     if(p.earned==null){
@@ -710,7 +711,7 @@ function hasCJK(s){ return /[\u3400-\u9fff]/.test(s); }
 
 /* ---------- AI layer (auto-active inside Claude.ai; via your Worker when self-hosted) ---------- */
 /* ▼▼▼ 把你的 Cloudflare Worker 地址粘到这里，自托管(GitHub Pages)即可启用真·AI ▼▼▼ */
-const APP_VERSION = "2026-06-18-v13d";  // 版本标记：控制台输入 APP_VERSION 可核对线上版本
+const APP_VERSION = "2026-06-23-v14b";  // 版本标记：控制台输入 APP_VERSION 可核对线上版本
 window.APP_VERSION = APP_VERSION;
 const WORKER_URL = "https://reading-quest-ai.dzkeke.workers.dev";
 /* 留空时：在 Claude.ai 里运行会自动直连 AI；自托管则使用内置鼓励语兜底 */
@@ -1521,7 +1522,7 @@ function renderRewards(pid){
 function redeem(pid,rid){
   const p=S.profiles[pid]; const r=S.rewards.find(x=>x.id===rid);
   if(p.points<r.cost) return;
-  const doIt=()=>{ p.points-=r.cost; S.redemptions.unshift({pid, name:r.name, icon:r.icon, cost:r.cost, date:todayStr()}); save(); toast('🎉 兑换成功！告诉爸爸妈妈领取吧'); renderRewards(pid); };
+  const doIt=()=>{ p.points-=r.cost; S.redemptions.unshift({pid, name:r.name, icon:r.icon, cost:r.cost, date:todayStr(), ts:Date.now()}); save(); toast('🎉 兑换成功！告诉爸爸妈妈领取吧'); renderRewards(pid); };
   if(S.settings.requireParentConfirm){ parentGate(()=>doIt()); } else doIt();
 }
 // lightweight parent gate: a small arithmetic question kids can't easily pass impulsively
@@ -1569,6 +1570,28 @@ function renderHistory(pid){
         </div>`; }).join('')
       : '<div class="sub" style="margin-top:10px">还没有记录。开始第一次打卡吧！</div>'}
     </div>
+    ${(()=>{
+      // 合并所有积分变动：打卡得分 + 家长手动加减，按时间倒序
+      const flows=[];
+      (p.history||[]).forEach(h=>{ if(h.points) flows.push({ ts:h.ts, delta:h.points, kind:'checkin', label:`打卡《${h.book}》`, mins:h.minutes }); });
+      (p.adjustments||[]).forEach(a=>{ flows.push({ ts:a.ts, delta:a.delta, kind:'adjust', label:a.reason }); });
+      (S.redemptions||[]).filter(x=>x.pid===pid).forEach(x=>{ flows.push({ ts:x.ts||new Date(x.date).getTime()||Date.now(), delta:-(x.cost||0), kind:'redeem', label:`兑换 ${x.icon||''}${x.name}` }); });
+      flows.sort((a,b)=>b.ts-a.ts);
+      if(!flows.length) return '';
+      return `<div class="card">
+        <div class="section-title">⭐ 积分变动记录</div>
+        <div class="sub">每一笔积分的来龙去脉，打卡赚的和爸爸妈妈调整的都在这里。</div>
+        ${flows.slice(0,50).map(f=>{
+          const d=new Date(f.ts); const ds=`${d.getMonth()+1}/${d.getDate()} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+          const up=f.delta>0;
+          const icon = f.kind==='checkin' ? '📖' : (f.kind==='redeem' ? '🎁' : (up?'🎁':'📌'));
+          return `<div class="hist-item">
+            <div class="hist-top"><span>${ds}</span><span style="color:${up?'var(--leaf-d)':'#d9534f'};font-weight:800">${up?'+':''}${f.delta} ⭐</span></div>
+            <div style="font-size:14px;margin-top:2px">${icon} ${f.label}${f.kind==='checkin'&&f.mins?`（${f.mins}分钟）`:''}</div>
+          </div>`;
+        }).join('')}
+      </div>`;
+    })()}
   `;
 }
 
@@ -1798,6 +1821,23 @@ function pinSubmit(mode, btn){
   else if(v===S.settings.parentPIN){ o.remove(); go('parent'); }
   else { el.value=''; el.placeholder='密码错误 ✕'; }
 }
+function applyAdjust(pid){
+  const raw=(document.getElementById('adj_'+pid).value||'').trim();
+  const reason=(document.getElementById('adjreason_'+pid).value||'').trim();
+  const delta=parseInt(raw,10);
+  if(!delta || isNaN(delta)){ toast('请输入要加减的分数，如 +5 或 -3'); return; }
+  if(!reason){ toast('请填写加减分的原因，让孩子明白为什么 😊'); return; }
+  const p=S.profiles[pid];
+  p.points=(p.points||0)+delta;
+  if(p.points<0) p.points=0;
+  // 加分时累计赚取也加（等级用）；减分不动 earned，避免等级倒退
+  if(delta>0) p.earned=(p.earned||0)+delta;
+  p.adjustments=p.adjustments||[];
+  p.adjustments.unshift({ ts:Date.now(), delta, reason });
+  save();
+  toast(`${p.name} ${delta>0?'+':''}${delta} 分 ✅（${reason}）`);
+  renderParent();
+}
 function renderParent(){
   app.innerHTML=`
     <div class="topbar">
@@ -1871,23 +1911,20 @@ function renderParent(){
         <button class="pill-btn" style="flex:1" onclick="diagSync()">🔍 测试云端连接</button>
         <button class="pill-btn" style="flex:1;color:var(--berry)" onclick="if(confirm('确定要清空所有数据吗？不可恢复！')){S=defaultState();save();go('family')}">🗑️ 重置全部</button>
       </div>
-      <div class="sub" style="margin-top:14px;font-weight:700">✏️ 手动修改积分（可用于补录丢失的分数）</div>
+      <div class="sub" style="margin-top:14px;font-weight:700">✏️ 手动加减积分（会记录原因，孩子可见）</div>
+      <div class="sub" style="font-size:12px;margin-bottom:4px">输入要增加或减少的分数（减分用负号，如 -5），并填写原因。</div>
       ${S.order.map(id=>{ const p=S.profiles[id]; return `
-        <div class="prow" style="margin-top:8px">
-          <span style="font-size:22px">${p.emoji}</span>
-          <span style="width:60px;font-weight:700">${p.name}</span>
-          <input class="ti" id="pts_${id}" inputmode="numeric" style="max-width:100px;flex:0 0 96px;text-align:center"
-                 value="${p.points}" placeholder="积分">
-          <button class="mini" onclick="
-            const v=parseInt(document.getElementById('pts_${id}').value)||0;
-            const pp=S.profiles['${id}'];
-            const diff=v-(pp.points||0);
-            pp.points=v;
-            pp.earned=Math.max((pp.earned||0)+Math.max(0,diff), v);
-            save();
-            toast('${p.name} 积分已更新为 '+v+' 分 ✅');
-            renderParent();
-          ">确认</button>
+        <div style="background:var(--cream);border-radius:12px;padding:10px;margin-top:8px">
+          <div class="prow">
+            <span style="font-size:22px">${p.emoji}</span>
+            <span style="width:50px;font-weight:700">${p.name}</span>
+            <span class="sub">当前 ${p.points} 分</span>
+          </div>
+          <div style="display:flex;gap:8px;margin-top:8px">
+            <input class="ti" id="adj_${id}" inputmode="numeric" style="flex:0 0 90px;text-align:center" placeholder="如 +5 / -3">
+            <input class="ti" id="adjreason_${id}" style="flex:1" placeholder="原因（如：主动帮忙/未完成约定）">
+          </div>
+          <button class="mini" style="margin-top:8px;width:100%" onclick="applyAdjust('${id}')">确认加减</button>
         </div>`; }).join('')}
       </div>
     </div>
